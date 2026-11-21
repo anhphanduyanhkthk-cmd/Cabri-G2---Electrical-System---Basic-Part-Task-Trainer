@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cabri G2 Electrical System – Maintenance Training Simulator (Test v0.1)</title>
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#ffffff; --ink:#1d2330; --muted:#5b6475; --line:#d9dde4;
+  --fuel:#2f7fd8; --fuel-dim:#b9c9de; --elec:#e8891c; --elec-dim:#c9ced6;
+  --ok:#1f9d55; --amber:#f2a516; --red:#d93a3a; --accent:#2b4c7e;
+  --cockpit:#1e232b; --cockpit2:#2a313c;
+}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--accent);color:#fff;padding:12px 18px;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline}
+header h1{font-size:18px;margin:0;font-weight:650}
+header .refs{font-size:12px;opacity:.85}
+.banner{background:#fff4d6;border-bottom:1px solid #ecd9a0;padding:6px 18px;font-size:12.5px;color:#6b5310}
+main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:14px;max-width:1500px;margin:0 auto}
+@media (max-width:1100px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
+svg{width:100%;height:auto;display:block}
+svg .comp{cursor:pointer}
+svg .comp:hover>*:not(text){filter:brightness(.93)}
+svg .comp.sel>rect,svg .comp.sel>circle,svg .comp.sel>path.body{stroke:#ff3d7f!important;stroke-width:3!important}
+svg text{font-family:inherit;font-size:13px;fill:var(--ink);pointer-events:none}
+svg text.small{font-size:11.5px;fill:var(--muted)}
+.pipe{fill:none;stroke-width:7;stroke-linecap:round;stroke-linejoin:round}
+.wire{fill:none;stroke-width:2.4}
+.flowing{stroke-dasharray:10 8;animation:flow 0.9s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-18}}
+/* cockpit */
+.cockpit{background:var(--cockpit);color:#e7eaf0;border-radius:10px;padding:12px;border:1px solid #0d1015}
+.cockpit h2{color:#9aa4b5}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;margin-bottom:10px}
+.sw{background:var(--cockpit2);border:1px solid #3a4352;border-radius:8px;padding:6px 8px;min-width:78px;text-align:center;cursor:pointer;user-select:none}
+.sw .lbl{font-size:10.5px;color:#9aa4b5;text-transform:uppercase;letter-spacing:.04em}
+.sw .pos{font-weight:700;font-size:13px;margin-top:2px}
+.sw.on .pos{color:#7ee2a8}
+.sw.off .pos{color:#c9ced6}
+.sw.popped{border-color:var(--amber)}
+.sw.popped .pos{color:var(--amber)}
+.lights{display:flex;gap:8px;flex-wrap:wrap}
+.lt{border-radius:6px;padding:6px 10px;font-weight:700;font-size:12px;letter-spacing:.04em;background:#3a3f48;color:#6f7682;border:1px solid #111}
+.lt.amber.lit{background:var(--amber);color:#2b1d00;box-shadow:0 0 12px #f2a51699}
+.lt.green.lit{background:#29c26a;color:#04220f;box-shadow:0 0 12px #29c26a99}
+.lt.blue.lit{background:#3b8cff;color:#fff}
+.tone{font-size:12px;color:#ffd36b;min-height:18px}
+.epm{background:#05070a;border:2px solid #39414d;border-radius:8px;padding:8px 10px;font-family:ui-monospace,Menlo,Consolas,monospace;color:#d8ffe6;position:relative;min-height:150px}
+.epm.offscreen{color:#1b2028}
+.epm .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}
+.epm .k{font-size:10.5px;color:#7f8ea3}
+.epm .v{font-size:20px;font-weight:700}
+.epm .v.red{color:#ff5050}
+.epm .v.amber{color:#ffc04a}
+.epm .bar{height:10px;background:#1a2230;border-radius:3px;overflow:hidden;margin-top:3px}
+.epm .bar>div{height:100%;background:#3b8cff}
+.epm .alarm{margin-top:6px;font-size:12px;color:#ff6b6b;min-height:16px}
+.epm .overlay{position:absolute;inset:0;background:#05070aee;padding:10px;border-radius:6px;font-size:12px}
+.epm button{font:inherit;font-size:10.5px;background:#1a2230;color:#cfe;border:1px solid #39414d;border-radius:4px;padding:1px 6px;cursor:pointer}
+.ground{background:#f0f2f6;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:12px;color:var(--ink)}
+.ground h2{color:var(--muted)}
+input[type=range]{width:100%}
+button.btn{font:inherit;font-size:13px;background:var(--accent);color:#fff;border:0;border-radius:7px;padding:6px 11px;cursor:pointer}
+button.btn.sec{background:#e6eaf1;color:var(--ink);border:1px solid var(--line)}
+button.btn.warn{background:#b8452f}
+button.btn:disabled{opacity:.45;cursor:not-allowed}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin:14px 14px 0;max-width:1500px}
+.tabs-wrap{max-width:1500px;margin:0 auto}
+.tab{padding:7px 12px;border-radius:8px 8px 0 0;background:#e3e7ee;cursor:pointer;font-weight:600;font-size:13px;color:var(--muted);border:1px solid var(--line);border-bottom:0}
+.tab.act{background:#fff;color:var(--ink)}
+.tabpanel{background:#fff;border:1px solid var(--line);border-radius:0 10px 10px 10px;margin:0 14px 18px;padding:14px;max-width:1472px}
+.hidden{display:none!important}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid var(--line);padding:5px 7px;text-align:left;vertical-align:top}
+th{background:#f3f5f8;font-weight:650}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:4px;padding:1px 6px;letter-spacing:.03em}
+.tag.v{background:#dcf3e5;color:#166c3b}
+.tag.d{background:#e2ebfa;color:#284f8f}
+.tag.a{background:#fde8cc;color:#8a4b00}
+.tag.t{background:#efe2fa;color:#5d2c86}
+.src{font-size:12px;color:var(--muted)}
+.log{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;max-height:260px;overflow:auto;background:#f7f8fa;border:1px solid var(--line);border-radius:6px;padding:8px}
+.meas{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:18px;background:#0f1a12;color:#9dff9d;padding:8px 12px;border-radius:6px;display:inline-block;min-width:260px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:900px){.two{grid-template-columns:1fr}}
+.callout{background:#f3f6fb;border-left:4px solid var(--accent);padding:8px 12px;border-radius:4px;margin:8px 0}
+.callout.good{border-color:var(--ok);background:#eefaf2}
+.callout.bad{border-color:var(--red);background:#fdf0f0}
+label.opt{display:block;padding:4px 0;cursor:pointer}
+select{font:inherit;padding:4px 6px;border-radius:6px;border:1px solid var(--line)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
+.legend span::before{content:"";display:inline-block;width:18px;height:4px;margin-right:5px;vertical-align:middle;background:var(--c)}
+.keygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:6px 14px}
+.keyitem{display:flex;gap:8px;align-items:flex-start;padding:5px 6px;border-radius:6px;cursor:pointer}
+.keyitem:hover{background:#f1f4f9}
+.keyitem .n{flex:0 0 22px;height:22px;border-radius:50%;background:#2b4c7e;color:#fff;font-weight:700;font-size:11.5px;display:flex;align-items:center;justify-content:center}
+.keyitem .nm{font-weight:650;font-size:13px}
+.keyitem .fd{font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<style>
+.lt.red.lit{background:#e5484d;color:#fff;box-shadow:0 0 12px #e5484d99}
+.lt.yellow.lit{background:#ffd23f;color:#2b2200}
+.cbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:6px}
+.cbx{background:#fff;border:1px solid var(--line);border-radius:7px;padding:4px 6px;cursor:pointer;font-size:11.5px;text-align:center;user-select:none}
+.cbx b{display:block;font-size:12.5px}
+.cbx.out{border-color:var(--amber);background:#fff6e5}
+.cbx.out b{color:#b26b00}
+.holdbtn{touch-action:none}
+svg .dot{stroke:#333;stroke-width:1}
+#schem text{font-size:16.5px}
+#schem text.small{font-size:14.5px}
+</style>
+<header>
+  <h1>Cabri G2 Electrical System — Maintenance Training Simulator <span style="font-weight:400;opacity:.8">· Test v0.1</span></h1>
+  <div class="refs">Sources: MM J70-002 Issue 08 · RFM J40-001 Issue 11 · IPC (printed 2026-11-21)</div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>System schematic (simplified layout — click any component)</h2>
+    <svg id="schem" viewBox="0 0 1120 728" aria-label="Electrical system schematic"></svg>
+    <div class="legend">
+      <span style="--c:var(--elec)">Wire energised</span>
+      <span style="--c:var(--elec-dim)">Wire de-energised</span>
+      <span style="--c:#7a5cc7">Control line energised</span>
+      <span style="--c:#29c26a">Load supplied (dot)</span>
+      <span style="--c:#d93a3a">Fault location (when shown)</span>
+    </div>
+    <label class="opt" style="margin-top:4px"><input type="checkbox" id="showFaults"> <b>Show fault location on schematic</b> <span class="src">(instructor / teaching — leave OFF while a student works a scenario; shown automatically after a diagnosis is submitted)</span></label>
+    <h2 style="margin-top:14px">Component key — function</h2>
+    <div id="keyTable"></div>
+  </section>
+
+  <aside>
+    <div class="cockpit">
+      <h2>Cockpit</h2>
+      <div class="row">
+        <div class="sw" id="swMaster"><div class="lbl">Master</div><div class="pos"></div></div>
+        <div class="sw" id="swAlt"><div class="lbl">ALT</div><div class="pos"></div></div>
+        <div class="sw" id="swPump"><div class="lbl">Fuel pump</div><div class="pos"></div></div>
+        <div class="sw" id="swBarc"><div class="lbl">BARC / NR sw</div><div class="pos"></div></div>
+      </div>
+      <div class="row">
+        <button class="btn holdbtn" id="btnStart">START (hold)</button>
+        <button class="btn sec" id="btnStop">Shut down</button>
+      </div>
+      <div class="lights" style="margin-bottom:6px">
+        <div class="lt amber" id="ltAlt">ALT</div>
+        <div class="lt red" id="ltOil">OIL P</div>
+        <div class="lt amber" id="ltStarter">STARTER</div>
+        <div class="lt green" id="ltBarcGreen">BARC BACKUP</div>
+      </div>
+      <div class="tone" id="tone"></div>
+      <div class="epm" id="epm" style="min-height:110px">
+        <div class="grid">
+          <div><div class="k">BATT (charge indicator)</div><div class="v" id="epmBatt" style="font-size:16px">—</div></div>
+          <div><div class="k">ENGINE</div><div class="v" id="epmEng" style="font-size:16px">—</div></div>
+          <div><div class="k">AVIONICS</div><div class="v" id="epmAv" style="font-size:16px">—</div></div>
+          <div><div class="k">PLASMA IGNITION</div><div class="v" id="epmPl" style="font-size:16px">—</div></div>
+        </div>
+        <div class="alarm" id="epmAlarm"></div>
+        <div style="font-size:10px;color:#7f8ea3">AVIONICS / PLASMA = supply status shown for training (not an EPM page).</div>
+      </div>
+    </div>
+
+    <div class="ground">
+      <h2>Cabin breaker panel</h2>
+      <div class="cbgrid" id="cbPanel"></div>
+      <div class="src" style="margin-top:4px">Click to pull / reset. RFM 7: if a breaker pops, wait a few seconds before resetting it. Do not try twice.</div>
+      <h2 style="margin-top:10px">Battery shelter breakers</h2>
+      <div class="cbgrid" id="bbPanel"></div>
+      <h2 style="margin-top:10px">Doors / remote</h2>
+      <div class="row" style="margin-bottom:0"><button class="btn sec" id="btnLock">Lock (remote)</button> <button class="btn sec" id="btnUnlock">Unlock (remote)</button> <span id="doorTxt" class="src"></span></div>
+    </div>
+  </aside>
+</main>
+
+<div class="tabs-wrap">
+<div class="tabs" id="tabs">
+  <div class="tab act" data-t="info">Component info</div>
+  <div class="tab" data-t="meas">Measurements &amp; inspection</div>
+  <div class="tab" data-t="scen">Troubleshooting &amp; procedures</div>
+  <div class="tab" data-t="instr">Instructor</div>
+  <div class="tab" data-t="src">Sources &amp; open questions</div>
+  <div class="tab" data-t="log">Event log</div>
+</div>
+<div class="tabpanel" id="p-info"></div>
+<div class="tabpanel hidden" id="p-meas"></div>
+<div class="tabpanel hidden" id="p-scen"></div>
+<div class="tabpanel hidden" id="p-instr"></div>
+<div class="tabpanel hidden" id="p-src"></div>
+<div class="tabpanel hidden" id="p-log"><div class="log" id="logBox"></div></div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   SOURCE REGISTER
+   ============================================================ */
+const SRC = {
+  RFM_3_FIRE:"RFM J40-001 Iss.11, Sect.3, Electrical fire (ALT OFF, MASTER OFF, NR switch Backup; notes)",
+  RFM_3_LT:  "RFM J40-001 Iss.11, Sect.3, Caution/warning lights table (STARTER, OIL P, ALT)",
+  RFM_3_EPM: "RFM J40-001 Iss.11, Sect.3, EPM indications table (BATT battery charge)",
+  RFM_4_2:   "RFM J40-001 Iss.11, Sect.4, Preflight: battery strap, terminals, battery breakers all set",
+  RFM_4_9:   "RFM J40-001 Iss.11, Sect.4, Before starting, Note 1 (NR green, GOV OFF, OIL P, ALT lights ON)",
+  RFM_4_11:  "RFM J40-001 Iss.11, Sect.4, Starting the engine (Fuel pump ON; STARTER light ON/OFF; oil P light OFF within 30 s; Alternator ON, check ALT goes off; Note 5)",
+  RFM_4_SD:  "RFM J40-001 Iss.11, Sect.4, Shut-down (Alternator OFF, Fuel pump OFF)",
+  RFM_7_7:   "RFM J40-001 Iss.11, Sect.7 p.7-7/7-8, Electrical circuit (12 V 25 Ah battery, 13.7 V 60 A alternator; MASTER exceptions; starting protections)",
+  RFM_7_9:   "RFM J40-001 Iss.11, Sect.7 p.7-9, Breaker panel (breakers and the devices they feed)",
+  RFM_7_10:  "RFM J40-001 Iss.11, Sect.7 p.7-10, Battery breakers (Auxiliaries, Master relay, Voltage regulator, BARC backup)",
+  RFM_7_17:  "RFM J40-001 Iss.11, Sect.7 p.7-17/18, BARC (main / backup / mute)",
+  RFM_7_19:  "RFM J40-001 Iss.11, Sect.7, Remote doors lock / anti-theft",
+  RFM_JUMP:  "RFM J40-001 Iss.11, Sect.7/8, Jump-starting (low battery; dead battery not airworthy)",
+  MM_71A:    "MM J70-002 Iss.08, 71-A Electrical circuit description (12/14 V; general layout)",
+  MM_71A01:  "MM J70-002 Iss.08, 71-A-01 Electrical Circuit Inspection (100 h)",
+  MM_71A10:  "MM J70-002 Iss.08, 71-A-10 Battery Box Removal and Installation",
+  MM_71A35:  "MM J70-002 Iss.08, 71-A-35 Breaker Load Analysis (load table; avionics disconnected by starter relay during start-up; standby current note)",
+  MM_71C01:  "MM J70-002 Iss.08, 71-C-01 Power Generation and Distribution",
+  MM_71C10:  "MM J70-002 Iss.08, 71-C-10 Starting and Clutching Circuit",
+  MM_71C25:  "MM J70-002 Iss.08, 71-C-25 Alternator Circuit (C-REG pins 1, 2, 3, 5, 6)",
+  MM_50C12:  "MM J70-002 Iss.08, 50-C-12 Alternator Replacement",
+  MM_50C14:  "MM J70-002 Iss.08, 50-C-14 Alternator Belt Replacement / 50-C-15 Belt Tension Adjustment",
+  MM_F:      "MM J70-002 Iss.08, Section F Troubleshooting (EPM does not boot; engine does not crank; cold engine does not start)",
+  MM_H1:     "MM J70-002 Iss.08, H-1 Post-Maintenance Ground Run (steps 5, 21, 23, 25)",
+  IPC_71:    "IPC fig. 7.1-00 Rev B (battery box: battery, master/starter relays, breakers, current sensor, cables)",
+  IPC_72:    "IPC fig. 7.2-02 Rev N (voltage regulator)",
+  IPC_51:    "IPC fig. 5.1-00 Rev G / 5.1-02 Rev K (alternator, belt, starter)"
+};
+const tag = t => '';
+
+/* ============================================================
+   COMPONENT DATA
+   ============================================================ */
+const COMP = {
+  batt:{name:"Battery",pn:"HG70-1069",ipc:"7.1-00 item 22",
+    fn:"12 V, 25 Ah lead-acid battery in the left engine compartment. Powers the circuit through the master relay; some circuits are fed direct from the battery (Plasma, Auxiliaries, BARC backup, master relay and voltage-regulator reference breakers). With MASTER OFF the standby drain is about 15–20 mA (remote door-lock receiver and internal losses): 1 to 2 months to drain the battery low.",
+    mm:["71-A-01 (inspect terminals and wires)","71-A-10 battery box","RFM preflight: strap, terminals"],src:["RFM_7_7","MM_71A","MM_71A35","MM_71A01","MM_71A10","RFM_4_2","IPC_71"]},
+  mr:{name:"Master relay",pn:"HG72-0734",ipc:"7.1-00 item 16",
+    fn:"Connects the battery to the bus bar, the starter relay and the alternator output. Its coil is fed through battery breaker BB1 ‘Master relay’ and grounded by the MASTER switch.",
+    mm:["71-A-01 step 6 (large wire terminals on relays below battery box)","71-A-10"],src:["MM_71C01","RFM_7_10","MM_71A01","IPC_71"]},
+  sr:{name:"Starter relay",pn:"HG72-1076",ipc:"7.1-00 item 15",
+    fn:"Switches battery power to the starter. Its control comes through the avionics relay (B1 ‘Radios – Starter’) and the starting circuit logic (B9). If the STARTER light stays ON after the START button is released, the starter relay is stuck: pull mixture OFF and switch MASTER OFF (RFM).",
+    mm:["71-C-10","71-A-01 step 6"],src:["MM_71C01","MM_71C10","RFM_7_9","RFM_3_LT","IPC_71"]},
+  starter:{name:"Engine starter",pn:"HG70-0825",ipc:"5.1-02 item 27",
+    fn:"Engine starter motor, powered from the starter relay.",mm:["71-C-10"],src:["MM_71C01","IPC_51"]},
+  alt:{name:"Alternator",pn:"HG70-0799",ipc:"5.1-00 item 6 (brush set HG75-2709, item 34)",
+    fn:"13.7 V, 60 A engine-driven alternator, belt driven. Output connected to the master relay output (through the ammeter). Field controlled by the voltage regulator (C-REG pin 3).",
+    mm:["50-C-12 Alternator replacement"],src:["RFM_7_7","MM_71C01","MM_71C25","MM_50C12","IPC_51"]},
+  belt:{name:"Alternator belt",pn:"HG62-0682",ipc:"5.1-00 item 2",
+    fn:"Drives the alternator from the engine accessory pulley. Replacement requires engine removal (MM 50-C-14); tension per 50-C-15.",
+    mm:["50-C-14","50-C-15"],src:["MM_50C14","IPC_51"]},
+  reg:{name:"Voltage regulator (C-REG)",pn:"G71-42-204",ipc:"7.2-02 item 16.3",
+    fn:"Controls the alternator. C-REG pin 1: from bus via B6 and ALT switch · pin 6: battery reference via BB2 · pin 3: alternator field (C-ENG-N) · pin 2: ALT light on the ancillaries board (1-29) · pin 5: ground (BTP-GP).",
+    mm:["71-C-25"],src:["MM_71C25","RFM_7_10","IPC_72"]},
+  amm:{name:"Ammeter (current sensor)",pn:"see open question OQ4",ipc:"—",
+    fn:"Measures the alternator current on the alternator output line (71-C-01). The EPM shows the battery charging rate (BATT).",
+    mm:["71-C-01"],src:["MM_71C01","RFM_3_EPM"]},
+  bbp:{name:"Battery shelter breakers (BB1–BB4)",pn:"5 A breakers HG72-0635 ×3, HG72-0757 ×1",ipc:"7.1-00 items 18, 21",
+    fn:"Four 5 A breakers in the battery shelter. BB1 Master relay · BB2 Voltage regulator (reference) · BB3 Auxiliaries (direct battery: remote door lock, magneto disabling during cranking, 13.7 V aux socket) · BB4 BARC backup (direct battery). Push type except Auxiliaries.",
+    mm:["RFM preflight: battery breakers all set","71-A-10"],src:["RFM_7_10","MM_71C01","RFM_4_2","IPC_71"]},
+  master:{name:"MASTER switch",pn:"—",ipc:"—",
+    fn:"Grounds the master relay coil. MASTER OFF disconnects all systems from the battery except: NR lights (BARC) backup, PLASMA ignition, doors remote control, 13.7 V auxiliary socket, some supplemental equipment.",
+    mm:["—"],src:["RFM_7_7","MM_71C01"]},
+  altsw:{name:"ALT switch",pn:"—",ipc:"—",
+    fn:"Connects B6 ‘Alternator’ to C-REG pin 1 to enable the voltage regulator.",mm:["71-C-25"],src:["MM_71C25","MM_71C01"]},
+  bus:{name:"Bus bar",pn:"—",ipc:"cable G71-84-100 master relay → bus (7.1-00 item 32)",
+    fn:"Main bus, fed from the master relay output. Supplies cabin breakers B1–B11.",mm:["71-C-01"],src:["MM_71C01","IPC_71"]},
+  cbp:{name:"Cabin breaker panel (B1–B12)",pn:"—",ipc:"—",
+    fn:"Push-pull breakers on the cabin bulkhead between the seats. B1–B11 on the bus; B12 Plasma is the only direct-battery breaker on the panel. Some systems are grouped on one breaker.",
+    mm:["71-A-35 load analysis"],src:["RFM_7_9","MM_71C01","MM_71A35"]},
+  avr:{name:"Avionics relay",pn:"—",ipc:"—",
+    fn:"Fed by B1. Supplies the radios/avionics; during cranking it switches to the starter relay control, so avionics are disconnected during start-up.",
+    mm:["71-C-01","71-A-35"],src:["MM_71C01","MM_71A35"]},
+  start:{name:"START button + starting circuit logic",pn:"—",ipc:"—",
+    fn:"Commands the starter relay through the avionics relay. Starting protections on ground: no cranking if the engine is already running and cranking was released for more than 80 s, or if the anti-theft is active (doors locked by remote).",
+    mm:["71-C-10","F: engine does not crank"],src:["MM_71C01","MM_71C10","RFM_7_7","MM_F"]},
+  plasma:{name:"Plasma ignition (B12)",pn:"—",ipc:"—",
+    fn:"Electronic ignition, fed direct from the battery through B12 (5 A). Remains powered with MASTER OFF. With MASTER and alternator both OFF the engine still operates with both ignitions, but without the governor.",
+    mm:["71-C-05"],src:["RFM_7_9","RFM_7_7","RFM_3_FIRE","MM_71C01"]},
+  aux:{name:"Auxiliaries (BB3, direct battery)",pn:"—",ipc:"—",
+    fn:"Remote door locking, magneto disabling during cranking, 13.7 V auxiliary socket. RFM: pull the AUXILIARIES battery breaker when storing the helicopter for more than a month.",
+    mm:["—"],src:["RFM_7_10","RFM_7_19"]},
+  barc:{name:"BARC + BARC/NR switch",pn:"G72-30-201",ipc:"7.2-02 item 3.1",
+    fn:"Fed by B8 ‘BARC main’ (power supply 1). Backup position: powered directly by the battery (BB4), central green light active. Mute: mutes the continuous NR horn. With MASTER OFF and NR switch on Backup, NR lights and LOW FUEL caution remain operative.",
+    mm:["71-B-01"],src:["RFM_7_17","RFM_3_FIRE","MM_71C01"]},
+  warn:{name:"Warning lights (B10)",pn:"—",ipc:"—",
+    fn:"B10 feeds MGB temp., ALT, CLUTCH, OIL P., BRAKE, GOV OFF, STARTER lights and the day-VFR map light. Simulated here: ALT (amber), OIL P (red), STARTER (amber).",
+    mm:["71-A-35"],src:["RFM_7_9","MM_71A35","RFM_3_LT"]},
+  epm:{name:"EPM (B5)",pn:"—",ipc:"—",
+    fn:"Fed by B5 ‘EPM – Hourmeter – BARC A2’. Shows the battery charge indicator BATT: green or white = battery being charged; yellow = not being charged.",
+    mm:["F: EPM does not boot at MASTER ON"],src:["RFM_7_9","RFM_3_EPM","MM_F"]},
+  altlt:{name:"ALT light (amber)",pn:"—",ipc:"—",
+    fn:"Alternator, regulator or battery charging malfunction. Driven from C-REG pin 2 via the ancillaries board; powered by B10. ON before start; must go OFF after Alternator ON. May flicker at idle — check it goes off above 1500 RPM.",
+    mm:["H-1 step 25"],src:["RFM_3_LT","MM_71C25","RFM_4_9","RFM_4_11","MM_H1"]}
+};
+
+/* breakers: id, label, amps (null = see OQ), loads text, feeds key */
+const CB = [
+  ['B1',null,'Radios / avionics · starter relay'],
+  ['B2','10','Landing light'],
+  ['B3','10','Nav lights'],
+  ['B4','10','Strobe · electric trim'],
+  ['B5','5','EPM · hourmeter · BARC #2'],
+  ['B6','5','Alternator → ALT sw → regulator'],
+  ['B7','5','Fuel pump · clutch · carb heat'],
+  ['B8','5','BARC main (#1 supply)'],
+  ['B9','5','Ancillaries · starter logic · governor'],
+  ['B10','5','Warning lights'],
+  ['B11',null,'Spare'],
+  ['B12','5','Plasma (direct battery)']
+];
+const BB = [['BB1','Master relay'],['BB2','Voltage regulator'],['BB3','Auxiliaries'],['BB4','BARC backup']];
+
+/* ============================================================
+   FAULTS
+   ============================================================ */
+const FAULTS = {
+  b1Pop:  {name:"B1 ‘Radios – Starter’ breaker popped", cb:'B1', rect:"Investigate the cause, reset B1 once (RFM 7: do not try twice). B1 feeds radios/avionics and the starter relay.", src:["RFM_7_9","MM_71C01"]},
+  b5Pop:  {name:"B5 ‘EPM – Hourmeter’ breaker popped", cb:'B5', rect:"MM Section F ‘EPM does not boot at Master switch-on’: check the EPM breaker. Reset once.", src:["MM_F","RFM_7_9"]},
+  b6Pop:  {name:"B6 ‘Alternator’ breaker popped", cb:'B6', rect:"Reset B6 once (RFM 7). B6 feeds the voltage regulator through the ALT switch (C-REG pin 1).", src:["RFM_7_9","MM_71C25"]},
+  b7Pop:  {name:"B7 ‘Pump – Clutch’ breaker popped", cb:'B7', rect:"Reset B7 once. B7 feeds the fuel pump, clutch (release) and carb heating; no fuel pressure rise means the engine does not start (see fuel module, MM F).", src:["RFM_7_9","MM_71C01","MM_F"]},
+  b8Pop:  {name:"B8 ‘BARC main’ breaker popped", cb:'B8', rect:"Reset B8 once. B8 is the BARC main (#1) supply; the BARC can be switched to direct-battery backup.", src:["RFM_7_9","RFM_7_17","MM_71C01"]},
+  b9Pop:  {name:"B9 ‘Ancillaries – Governor’ breaker popped", cb:'B9', rect:"Reset B9 once. B9 feeds the intermediate starter relay, starter logic, very-low-rotor-speed relay and governor.", src:["RFM_7_9","MM_71C01"]},
+  b10Pop: {name:"B10 ‘Warning lights’ breaker popped", cb:'B10', rect:"Reset B10 once. With B10 out, ALT, OIL P, STARTER and the other warning lights cannot illuminate.", src:["RFM_7_9","MM_71A35"]},
+  bb1Pop: {name:"Battery breaker BB1 ‘Master relay’ out", bb:'BB1', rect:"Set the battery breaker (RFM preflight: battery breakers all set). BB1 feeds the master relay coil.", src:["RFM_7_10","RFM_4_2"]},
+  bb2Pop: {name:"Battery breaker BB2 ‘Voltage regulator’ out", bb:'BB2', rect:"Set the battery breaker. BB2 provides the voltage reference for the alternator regulator (C-REG pin 6).", src:["RFM_7_10","MM_71C25","RFM_4_2"]},
+  bb4Pop: {name:"Battery breaker BB4 ‘BARC backup’ out", bb:'BB4', rect:"Set the battery breaker. BB4 is the direct-battery BARC backup supply.", src:["RFM_7_10","RFM_4_2"]},
+  beltBroken:{name:"Alternator belt broken", rect:"Replace the belt per MM 50-C-14 (engine removal required) and adjust tension per 50-C-15.", src:["MM_50C14","IPC_51"]},
+  altFail:{name:"Alternator / regulator charging malfunction", rect:"RFM ALT light: alternator, regulator or battery charging malfunction. Troubleshoot the alternator circuit (71-C-25); alternator replacement per MM 50-C-12.", src:["RFM_3_LT","MM_71C25","MM_50C12"]},
+  antitheft:{name:"Anti-theft active (doors locked by remote)", rect:"MM Section F ‘Engine does not crank’: check anti-theft is disabled — use the remote door lock transmitter, press ‘Unlock’ to double check.", src:["MM_F","RFM_7_7","RFM_7_19"]},
+  srStuck:{name:"Starter relay stuck", rect:"RFM: STARTER light stays ON when the button is released → immediately pull mixture OFF and switch MASTER OFF. Have the starting system serviced.", src:["RFM_3_LT","MM_71C10"]}
+};
+
+/* fault location on the schematic (authoring grid): [x, y, w, h, label side] */
+const FLOC = {
+  b1Pop:[612,56,52,30,'L'], b5Pop:[612,216,52,30,'L'], b6Pop:[612,256,52,30,'L'], b7Pop:[612,296,52,30,'L'],
+  b8Pop:[612,336,52,30,'L'], b9Pop:[612,376,52,30,'L'], b10Pop:[612,416,52,30,'L'],
+  bb1Pop:[205,425,42,30,'B'], bb2Pop:[149,425,42,30,'B'], bb4Pop:[339,425,42,30,'B'],
+  beltBroken:[378,144,60,58,'C',[470,122,'middle']], altFail:[156,116,226,92,'T'],
+  antitheft:[396,242,88,34,'T'], srStuck:[392,292,76,52,'B']
+};
+const FLABEL = {
+  b1Pop:'B1 popped', b5Pop:'B5 popped', b6Pop:'B6 popped', b7Pop:'B7 popped', b8Pop:'B8 popped', b9Pop:'B9 popped', b10Pop:'B10 popped',
+  bb1Pop:'BB1 out', bb2Pop:'BB2 out', bb4Pop:'BB4 out',
+  beltBroken:'Belt broken', altFail:'Alternator / regulator charging malfunction',
+  antitheft:'Anti-theft active (doors locked)', srStuck:'Starter relay stuck'
+};
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const S = {
+  master:false, alt:false, pumpSw:false, barc:"MAIN",
+  cb:{}, bb:{}, locked:false,
+  startHeld:false, crankT:0, relSinceStart:0,
+  engine:"OFF", runT:0,
+  faults:new Set(), showFaults:false, reveal:false, meter:'batt', meterCb:'B5', sel:null,
+  scenario:null, drill:null, actions:[], prevMaster:false, epmBootT:-1, msg:'', msgT:0
+};
+CB.forEach(c=>S.cb[c[0]]=true); BB.forEach(b=>S.bb[b[0]]=true);
+const log = (m) => { const t=new Date().toLocaleTimeString(); S.actions.push(m); if(S.drill && !m.startsWith('Drill')) S.drill.steps.push(m); const b=document.getElementById('logBox'); b.innerHTML = `<div>[${t}] ${m}</div>` + b.innerHTML; };
+
+/* ============================================================
+   MODEL — every rule is listed with its source in the Sources tab
+   ============================================================ */
+function model(){
+  const f=S.faults, m={};
+  m.mrClosed = S.master && S.bb.BB1;                         // BB1 feeds master relay coil, MASTER grounds it (RFM 7-10, 71-C-01)
+  m.bus = m.mrClosed;
+  m.out = id => (id==='B12') ? S.cb.B12 : (m.bus && S.cb[id]);   // B12 direct battery (RFM 7-9)
+  m.regEnabled = m.out('B6') && S.alt;                       // C-REG pin 1 (71-C-25)
+  m.regRef = S.bb.BB2;                                       // C-REG pin 6 (71-C-25, RFM 7-10)
+  m.charging = S.engine==="RUNNING" && !f.has('beltBroken') && !f.has('altFail') && m.regEnabled && m.regRef && m.mrClosed;
+  m.busV = m.charging ? 13.7 : 12.0;                         // 12 V battery / 13.7 V alternator (RFM 7-7)
+  m.termV = m.busV;
+  // starting
+  const protect = (S.engine==="RUNNING" && S.relSinceStart>80);     // RFM 7-7 starting protections
+  m.crankCmd = S.startHeld && m.out('B1') && m.out('B9') && !S.locked && !protect;   // 71-C-01 / 71-C-10, RFM 7-9
+  m.starterOn = m.mrClosed && (m.crankCmd || (f.has('srStuck') && S.crankT>0));
+  m.protect = protect;
+  m.avionics = m.out('B1') && !S.startHeld;                  // avionics disconnected during start-up (71-A-35)
+  // lights (B10)
+  m.altLight = m.out('B10') && !m.charging;
+  m.oilLight = m.out('B10') && S.engine!=="RUNNING";
+  m.starterLight = m.out('B10') && m.starterOn;
+  // other loads
+  m.epm = m.out('B5');
+  m.barcPowered = m.out('B8') || (S.barc==="BACKUP" && S.bb.BB4);
+  m.barcGreen = S.barc==="BACKUP" && S.bb.BB4;
+  m.pumpRun = m.out('B7') && S.pumpSw;
+  m.plasma = S.cb.B12;
+  m.aux = S.bb.BB3;
+  return m;
+}
+
+function step(dt){
+  if(S.master && !S.prevMaster){ S.epmBootT=0; log('MASTER ON'); }
+  if(!S.master && S.prevMaster){ S.epmBootT=-1; log('MASTER OFF'); }
+  S.prevMaster=S.master;
+  if(S.epmBootT>=0) S.epmBootT+=dt;
+  const m=model();
+  if(m.starterOn){ S.crankT+=dt; }
+  if(m.crankCmd && S.engine!=="RUNNING" && S.crankT>=1.5){
+    if(m.pumpRun){ S.engine="RUNNING"; S.runT=0; S.relSinceStart=0; log('Engine started'); }
+    else if(!S.noStartMsg){ S.noStartMsg=true; log('Engine cranks but does not start — no fuel pressure rise (fuel pump not running). See fuel module / MM F.'); flashMsg('Engine cranks but does not start — check fuel pump / fuel pressure (RFM 4-11, MM F).'); }
+  }
+  if(!S.startHeld && !S.faults.has('srStuck')) S.crankT=0;
+  if(S.faults.has('srStuck') && !m.mrClosed) S.crankT=0;
+  if(S.engine==="RUNNING"){ S.runT+=dt; if(!S.startHeld) S.relSinceStart+=dt; }
+  if(S.msgT>0) S.msgT-=dt;
+  render();
+}
+
+/* ============================================================
+   SCHEMATIC
+   ============================================================ */
+const svg=document.getElementById('schem');
+// layout scale: geometry is authored on a 1000×560 grid and spread to 1120×728; text size is set separately (CSS)
+const SX=1.12, SY=1.3;
+const SD = d => d.replace(/([ML])\s*(-?[\d.]+)\s+(-?[\d.]+)/g,(a,c,x,y)=>`${c}${(+x*SX).toFixed(1)} ${(+y*SY).toFixed(1)}`);
+function el(tagN,attrs,parent){ const e=document.createElementNS("http://www.w3.org/2000/svg",tagN);
+  for(const k in attrs){ let v=attrs[k];
+    if(k==='x'||k==='cx'||k==='width') v=(+v)*SX;
+    else if(k==='y'||k==='cy'||k==='height') v=(+v)*SY;
+    else if(k==='r') v=(+v)*1.15;
+    else if(tagN==='ellipse'&&k==='rx') v=(+v)*SX;
+    else if(tagN==='ellipse'&&k==='ry') v=(+v)*SY;
+    else if(k==='d') v=SD(v);
+    e.setAttribute(k,v); }
+  (parent||svg).appendChild(e); return e; }
+function txt(x,y,s,cls,parent,anchor){ const t=el('text',{x,y,class:cls||'','text-anchor':anchor||'middle'},parent); t.textContent=s; return t; }
+function comp(id){ const g=el('g',{class:'comp','data-id':id}); g.addEventListener('click',()=>select(id)); return g; }
+const KEY=[['batt','Battery'],['mr','Master relay'],['sr','Starter relay'],['starter','Starter'],['alt','Alternator'],['belt','Alternator belt'],
+  ['reg','Voltage regulator'],['amm','Ammeter'],['bbp','Battery breakers'],['master','MASTER switch'],['altsw','ALT switch'],['bus','Bus bar'],
+  ['cbp','Cabin breakers'],['avr','Avionics relay'],['start','START + logic'],['plasma','Plasma ignition'],['aux','Auxiliaries'],['barc','BARC'],
+  ['warn','Warning lights'],['epm','EPM'],['altlt','ALT light']];
+const KEYNUM={}; KEY.forEach((k,i)=>KEYNUM[k[0]]=i+1);
+function badge(id,x,y){ const g=el('g',{class:'comp'}); g.addEventListener('click',()=>select(id));
+  el('circle',{cx:x,cy:y,r:8.5,fill:'#2b4c7e'},g); const t=txt(x,y+4,String(KEYNUM[id]),'',g); t.style.fill='#fff'; t.style.fontSize='12px'; t.style.fontWeight='700'; }
+function ground(x,y){ el('path',{d:`M${x} ${y} L${x} ${y+10} M${x-10} ${y+10} L${x+10} ${y+10} M${x-6} ${y+15} L${x+6} ${y+15} M${x-2} ${y+20} L${x+2} ${y+20}`,stroke:'#333','stroke-width':1.6,fill:'none'}); }
+function brk(id,x,y,keyId){ const g=comp(keyId); el('path',{d:`M${x} ${y-10} L${x} ${y}`,stroke:'#666','stroke-width':2},g);
+  el('rect',{id:'r-'+id,x:x-17,y:y,width:34,height:20,rx:4,fill:'#fff',stroke:'#555','stroke-width':1.8},g); const t=txt(x,y+14,id,'small',g); t.style.fontWeight='700'; t.style.fill='#333'; }
+
+function buildSchematic(){
+  el('rect',{x:6,y:6,width:988,height:548,rx:10,fill:'#fbfaf6',stroke:'#ece6d8'});
+  txt(16,546,'Simplified from MM 71-C-01 / 71-C-25 / 71-C-10 — click any component','small',null,'start');
+  // ---- wires (drawn first) ----
+  el('path',{id:'wBatt',class:'wire',d:'M130 318 L200 318'});
+  el('path',{id:'wMRout',class:'wire',d:'M264 318 L396 318'});
+  el('path',{id:'wBusCable',class:'wire',d:'M300 318 L300 390 L590 390'});
+  el('path',{id:'wSR',class:'wire',d:'M464 318 L496 318'});
+  el('path',{id:'wAltOut',class:'wire',d:'M350 198 L350 318'});
+  el('path',{id:'wField',class:'wire',d:'M280 172 L324 172'});
+  el('path',{id:'wDirect',class:'wire',d:'M150 318 L150 420 L436 420'});
+  el('path',{id:'wBB2',class:'wire',d:'M170 450 L170 478 L20 478 L20 172 L160 172'});
+  el('path',{id:'wBB1',class:'wire',d:'M226 450 L226 494'});
+  el('path',{id:'wCoil',class:'wire',d:'M256 506 L254 506 L254 358 L230 358 L230 340','stroke-dasharray':'5 4'});
+  el('path',{id:'wB6in',class:'wire',d:'M150 84 L190 84'});
+  el('path',{id:'wAltEn',class:'wire',d:'M220 96 L220 150'});
+  el('path',{id:'wAltLt',class:'wire',d:'M262 150 L262 84 L300 84'});
+  el('path',{id:'wStartCtl',class:'wire',d:'M440 272 L440 296','stroke-dasharray':'5 4'});
+  // ---- battery ----
+  let g=comp('batt'); el('rect',{x:40,y:292,width:90,height:54,rx:5,fill:'#fff',stroke:'#333','stroke-width':2},g);
+  for(let i=0;i<5;i++){ el('path',{d:`M${56+i*14} 302 L${56+i*14} 322 M${62+i*14} 306 L${62+i*14} 318`,stroke:'#333','stroke-width':i%1?1:2},g); }
+  txt(85,338,'BATTERY','small',g); el('text',{id:'battV',x:85,y:284,'text-anchor':'middle',class:'small'},g);
+  txt(124,312,'+','',g); el('path',{d:'M85 346 L85 356',stroke:'#333','stroke-width':2,fill:'none'}); ground(85,356); txt(97,372,'−','small',null,'start');
+  // ---- master relay ----
+  g=comp('mr'); el('rect',{x:196,y:296,width:68,height:44,rx:5,fill:'#fff',stroke:'#333','stroke-width':2},g);
+  el('path',{id:'mrBlade',d:'M212 306 L248 306',stroke:'#333','stroke-width':3},g); txt(230,322,'MASTER','small',g); txt(230,335,'relay','small',g);
+  // ---- starter relay + starter ----
+  g=comp('sr'); el('rect',{x:396,y:296,width:68,height:44,rx:5,fill:'#fff',stroke:'#333','stroke-width':2},g);
+  el('path',{id:'srBlade',d:'M412 306 L448 306',stroke:'#333','stroke-width':3},g); txt(430,322,'STARTER','small',g); txt(430,335,'relay','small',g);
+  g=comp('starter'); el('circle',{id:'starterC',cx:520,cy:318,r:24,fill:'#fff',stroke:'#333','stroke-width':2},g); txt(520,322,'Starter','small',g);
+  el('path',{d:'M520 342 L520 352',stroke:'#333','stroke-width':1.6}); ground(520,352);
+  g=comp('start'); el('rect',{id:'startBox',x:400,y:246,width:80,height:26,rx:5,fill:'#fff',stroke:'#7a5cc7','stroke-width':2},g); txt(440,263,'START','',g);
+  txt(486,263,'via B1 & B9','small',g,'start');
+  // ---- alternator, belt, engine, regulator ----
+  g=comp('alt'); el('circle',{id:'altC',cx:350,cy:172,r:26,fill:'#fff',stroke:'#333','stroke-width':2},g); txt(350,176,'ALT','',g); txt(350,130,'Alternator 13.7 V','small',g);
+  el('rect',{id:'engBox',x:430,y:130,width:120,height:84,rx:8,fill:'#eef1f5',stroke:'#9aa6b8'});
+  txt(500,148,'ENGINE',''); el('text',{id:'engTxt',x:500,y:206,'text-anchor':'middle',class:'small'}).textContent='';
+  el('circle',{cx:470,cy:174,r:16,fill:'#fff',stroke:'#555','stroke-width':2});
+  g=comp('belt'); el('path',{id:'beltPath',class:'body',d:'M350 149 L470 160 M350 195 L470 188',stroke:'#444','stroke-width':3,fill:'none'},g);
+  txt(410,224,'belt','small',g);
+  g=comp('reg'); el('rect',{x:160,y:150,width:120,height:44,rx:5,fill:'#fff',stroke:'#333','stroke-width':2},g);
+  txt(220,170,'Voltage regulator','small',g); txt(220,185,'C-REG','small',g);
+  txt(152,168,'6','small',null,'end'); txt(214,146,'1','small',null,'end'); txt(256,146,'2','small',null,'end'); txt(290,168,'3','small',null,'start');
+  el('path',{d:'M220 194 L220 206',stroke:'#333','stroke-width':1.6}); ground(220,206); txt(232,214,'5 (BTP-GP)','small',null,'start');
+  // ammeter
+  g=comp('amm'); el('ellipse',{cx:350,cy:258,rx:14,ry:6,fill:'none',stroke:'#222','stroke-width':3},g); txt(330,262,'Ammeter','small',g,'end');
+  // ALT switch + ALT light
+  txt(146,88,'B6 →','small',null,'end');
+  g=comp('altsw'); el('rect',{x:190,y:72,width:60,height:24,rx:5,fill:'#fff',stroke:'#333','stroke-width':2},g); el('text',{id:'altswTxt',x:220,y:88,'text-anchor':'middle'},g);
+  g=comp('altlt'); el('circle',{id:'altLtC',cx:310,cy:84,r:10,fill:'#555',stroke:'#222'},g); txt(326,80,'ALT light','small',g,'start'); txt(326,93,'(ancill. board, B10)','small',g,'start');
+  // ---- direct battery breakers ----
+  brk('BB2',170,430,'bbp'); brk('BB1',226,430,'bbp'); brk('BB3',290,430,'bbp'); brk('BB4',360,430,'bbp'); brk('B12',430,430,'plasma');
+  txt(150,412,'direct battery','small',null,'start');
+  // BB3/BB4/B12 output dots
+  [['BB3',290,'aux'],['BB4',360,'barc'],['B12',430,'plasma']].forEach(([id,x,k])=>{ el('path',{id:'wO'+id,class:'wire',d:`M${x} 450 L${x} 470`}); const gg=comp(k); el('circle',{id:'d'+id,class:'dot',cx:x,cy:476,r:6,fill:'#ccc'},gg); });
+  txt(290,496,'Aux','small'); txt(360,496,'BARC bkp','small'); txt(430,496,'Plasma','small');
+  g=comp('master'); el('rect',{x:196,y:494,width:60,height:24,rx:5,fill:'#fff',stroke:'#333','stroke-width':2},g); el('text',{id:'masterTxt',x:226,y:510,'text-anchor':'middle'},g);
+  txt(226,532,'MASTER sw (grounds coil)','small');
+  txt(28,470,'BB2 → C-REG 6','small',null,'start');
+  // ---- bus bar + cabin breakers ----
+  g=comp('bus'); el('rect',{x:590,y:50,width:14,height:450,rx:3,fill:'#555'},g);
+  const bt=txt(597,40,'BUS','small',g); bt.style.fontWeight='700';
+  el('text',{id:'busTxt',x:597,y:516,'text-anchor':'middle',class:'small'});
+  CB.slice(0,11).forEach((c,i)=>{ const y=60+i*40;
+    el('path',{id:'wF'+c[0],class:'wire',d:`M604 ${y+11} L616 ${y+11}`});
+    const gb=comp('cbp'); el('rect',{id:'r-'+c[0],x:616,y:y,width:44,height:22,rx:4,fill:'#fff',stroke:'#555','stroke-width':1.8},gb); const t=txt(638,y+15,c[0],'small',gb); t.style.fontWeight='700'; t.style.fill='#333';
+    el('path',{id:'wO'+c[0],class:'wire',d:`M660 ${y+11} L${c[0]==='B1'?668:678} ${y+11}`});
+    const k = {B1:'avr',B5:'epm',B6:'altsw',B8:'barc',B9:'start',B10:'warn'}[c[0]]||'cbp';
+    const gl=comp(k);
+    if(c[0]==='B1'){ el('rect',{id:'avrBox',x:668,y:y,width:60,height:22,rx:4,fill:'#fff',stroke:'#333','stroke-width':1.6},gl); txt(698,y+15,'AV relay','small',gl);
+      el('circle',{id:'dB1',class:'dot',cx:740,cy:y+11,r:6,fill:'#ccc'},gl); txt(752,y+15,'Radios / avionics · starter ctl','small',gl,'start'); }
+    else { el('circle',{id:'d'+c[0],class:'dot',cx:684,cy:y+11,r:6,fill:'#ccc'},gl);
+      txt(696,y+15,(c[1]?c[1]+' A  ':'')+c[2],'small',gl,'start'); }
+  });
+  // ---- badges ----
+  [['batt',46,284],['mr',202,284],['sr',472,292],['starter',556,294],['alt',380,154],['belt',410,206],['reg',150,150],['amm',262,258],
+   ['bbp',196,460],['master',186,506],['altsw',182,62],['bus',572,46],['cbp',666,500],['avr',698,44],['start',392,246],
+   ['plasma',448,476],['aux',308,476],['barc',378,476],['warn',946,431],['epm',946,231],['altlt',300,66]].forEach(b=>badge(b[0],b[1],b[2]));
+}
+
+function setWire(id,on,ctl){ const w=document.getElementById(id); if(w) w.setAttribute('stroke', on?(ctl?'#7a5cc7':'var(--elec)'):'var(--elec-dim)'); }
+function setDot(id,on){ const d=document.getElementById(id); if(d) d.setAttribute('fill', on?'#29c26a':'#ccc'); }
+
+function drawFaultLayer(){
+  let L=document.getElementById('faultLayer'); if(L) L.remove();
+  if(!(S.showFaults||S.reveal) || !S.faults.size) return;
+  L=el('g',{id:'faultLayer'}); L.style.pointerEvents='none';
+  S.faults.forEach(k=>{ const p=FLOC[k]; if(!p) return; const [x,y,w,h,side,custom]=p;
+    el('rect',{x,y,width:w,height:h,rx:6,fill:'#d93a3a22',stroke:'#d93a3a','stroke-width':2.5,'stroke-dasharray':'6 4'},L);
+    if(/^(b|bb)\d+Pop$/.test(k)) return;   // breaker: the red box on the named breaker is enough
+    let tx,ty,anc;
+    if(custom){ [tx,ty,anc]=custom; } else if(side==='L'){ tx=x-28; ty=y+h/2+5; anc='end'; } else if(side==='B'){ tx=x+w/2; ty=y+h+16; anc='middle'; } else { tx=x+w/2; ty=y-6; anc='middle'; }
+    const t=txt(tx,ty,'⚠ '+FLABEL[k],'small',L,anc); t.style.fill='#c0262d'; t.style.fontWeight='700'; t.style.paintOrder='stroke'; t.style.stroke='#fff'; t.style.strokeWidth='4px';
+  });
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function render(){
+  const m=model();
+  const sw=(id,on,a,b)=>{const e=document.getElementById(id); e.classList.toggle('on',on); e.classList.toggle('off',!on); e.querySelector('.pos').textContent=on?a:b;};
+  sw('swMaster',S.master,'ON','OFF'); sw('swAlt',S.alt,'ON','OFF'); sw('swPump',S.pumpSw,'ON','OFF'); sw('swBarc',S.barc==="BACKUP",'BACKUP','MAIN');
+  // lights
+  document.getElementById('ltAlt').classList.toggle('lit',m.altLight);
+  document.getElementById('ltOil').classList.toggle('lit',m.oilLight);
+  document.getElementById('ltStarter').classList.toggle('lit',m.starterLight);
+  document.getElementById('ltBarcGreen').classList.toggle('lit',m.barcGreen);
+  document.getElementById('tone').textContent = S.msgT>0 ? S.msg : (m.starterOn ? 'Starter energised…' : '');
+  // EPM
+  const epm=document.getElementById('epm'); epm.classList.toggle('offscreen',!m.epm);
+  const b=document.getElementById('epmBatt'), en=document.getElementById('epmEng'), av=document.getElementById('epmAv'), pl=document.getElementById('epmPl'), al=document.getElementById('epmAlarm');
+  if(!m.epm){ [b,en,av,pl,al].forEach(x=>x.textContent=''); }
+  else{
+    b.textContent = m.charging?'CHARGING':'NOT CHARGING'; b.className='v'+(m.charging?'':' amber'); b.style.color=m.charging?'#7ee2a8':'#ffd23f'; b.style.fontSize='16px';
+    en.textContent=S.engine; av.textContent=m.avionics?'POWERED':'OFF'; pl.textContent=m.plasma?'POWERED':'OFF';
+    al.textContent = (S.engine==="RUNNING" && !m.charging) ? '⚠ BATT — battery not being charged' : '';
+  }
+  // panels
+  document.querySelectorAll('#cbPanel .cbx').forEach(d=>d.classList.toggle('out',!S.cb[d.dataset.id]));
+  document.querySelectorAll('#bbPanel .cbx').forEach(d=>d.classList.toggle('out',!S.bb[d.dataset.id]));
+  document.getElementById('doorTxt').textContent = S.locked ? 'Doors locked — anti-theft ACTIVE (no cranking)' : 'Doors unlocked — anti-theft disabled';
+  // schematic
+  setWire('wBatt',true); setWire('wDirect',true);
+  setWire('wMRout',m.mrClosed); setWire('wBusCable',m.bus);
+  document.getElementById('mrBlade').setAttribute('d', SD(m.mrClosed?'M212 306 L248 306':'M212 306 L246 296'));
+  document.getElementById('srBlade').setAttribute('d', SD(m.starterOn?'M412 306 L448 306':'M412 306 L446 296'));
+  setWire('wSR',m.starterOn); document.getElementById('starterC').setAttribute('fill',m.starterOn?'#ffe7c2':'#fff');
+  setWire('wStartCtl',m.crankCmd||m.starterOn,true); document.getElementById('startBox').setAttribute('fill',S.startHeld?'#efe7ff':'#fff');
+  setWire('wAltOut',m.charging); setWire('wField',m.charging); document.getElementById('altC').setAttribute('fill',m.charging?'#e2f6e9':'#fff');
+  document.getElementById('beltPath').setAttribute('stroke',S.faults.has('beltBroken')&&(S.beltSeen||S.showFaults||S.reveal)?'#d93a3a':'#444');
+  setWire('wBB2',S.bb.BB2); setWire('wBB1',S.bb.BB1); setWire('wCoil',m.mrClosed,true);
+  setWire('wB6in',m.out('B6')); setWire('wAltEn',m.regEnabled); setWire('wAltLt',m.altLight);
+  document.getElementById('altLtC').setAttribute('fill',m.altLight?'var(--amber)':'#555');
+  document.getElementById('altswTxt').textContent='ALT '+(S.alt?'ON':'OFF');
+  document.getElementById('masterTxt').textContent=S.master?'ON':'OFF';
+  ['BB1','BB2','BB3','BB4'].forEach(id=>document.getElementById('r-'+id).setAttribute('stroke',S.bb[id]?'#555':'var(--amber)'));
+  ['BB3','BB4'].forEach(id=>{ setWire('wO'+id,S.bb[id]); setDot('d'+id,S.bb[id]); });
+  setWire('wOB12',S.cb.B12); setDot('dB12',S.cb.B12); document.getElementById('r-B12').setAttribute('stroke',S.cb.B12?'#555':'var(--amber)');
+  CB.slice(0,11).forEach(c=>{ const id=c[0]; setWire('wF'+id,m.bus); setWire('wO'+id,m.out(id));
+    document.getElementById('r-'+id).setAttribute('stroke',S.cb[id]?'#555':'var(--amber)');
+    document.getElementById('r-'+id).setAttribute('fill',S.cb[id]?'#fff':'#fff3dc');
+    if(id==='B1'){ setDot('dB1',m.avionics); document.getElementById('avrBox').setAttribute('fill',m.out('B1')?(S.startHeld?'#efe7ff':'#eaf6ee'):'#fff'); }
+    else if(id==='B11') setDot('dB11',false);
+    else setDot('d'+id,m.out(id)); });
+  document.getElementById('busTxt').textContent = m.bus ? m.busV.toFixed(1)+' V' : '0 V';
+  document.getElementById('battV').textContent = m.termV.toFixed(1)+' V';
+  document.getElementById('engBox').setAttribute('fill',S.engine==="RUNNING"?'#e2f6e9':'#eef1f5');
+  document.getElementById('engTxt').textContent = S.engine==="RUNNING"?'RUNNING':(m.starterOn?'CRANKING':'OFF');
+  document.getElementById('btnStop').disabled = S.engine!=="RUNNING";
+  drawFaultLayer();
+  renderMeasLive(m);
+}
+
+/* ============================================================
+   INFO
+   ============================================================ */
+function select(id){
+  S.sel=id; document.querySelectorAll('svg .comp').forEach(g=>g.classList.toggle('sel', g.dataset.id===id));
+  const c=COMP[id];
+  document.getElementById('p-info').innerHTML=`<div class="two"><div>
+    <h3 style="margin:0 0 4px">${c.name}</h3><p>${c.fn}</p>
+    <table><tr><th>P/N (IPC)</th><td>${c.pn}</td></tr><tr><th>IPC reference</th><td>${c.ipc}</td></tr><tr><th>MM tasks</th><td>${c.mm.join('<br>')}</td></tr></table>
+    <p class="src">P/N listed is the latest orderable variant in the IPC. Check effectivity against the aircraft configuration and applied SBs.</p>
+    </div><div><h3 style="margin:0 0 4px">Sources</h3><ul>${c.src.map(s=>`<li class="src">${SRC[s]}</li>`).join('')}</ul></div></div>`;
+  activateTab('info');
+}
+
+/* ============================================================
+   MEASUREMENTS & INSPECTION
+   ============================================================ */
+function buildMeas(){
+  document.getElementById('p-meas').innerHTML=`<div class="two"><div>
+    <h3 style="margin-top:0">Multimeter (DC volts to ground)</h3>
+    <div class="row"><label>Point: <select id="mSel">
+      <option value="batt">Battery + terminal</option>
+      <option value="bus">Bus bar</option>
+      <option value="reg1">C-REG pin 1 (from B6 via ALT switch)</option>
+      <option value="reg6">C-REG pin 6 (from BB2)</option>
+      <option value="cb">Cabin breaker output…</option>
+    </select></label> <select id="mCb">${CB.map(c=>`<option value="${c[0]}">${c[0]}</option>`).join('')}</select></div>
+    <div class="meas" id="measOut">—</div>
+    <div class="src" id="measNote" style="margin-top:6px"></div>
+    <div class="callout src">The MM gives no table of voltages for these points. Readings follow the connections in 71-C-01 / 71-C-25, with the nominal values from RFM 7 (12 V battery, 13.7 V alternator).</div>
+   </div><div>
+    <h3 style="margin-top:0">Inspection actions</h3>
+    <div class="row"><button class="btn sec" id="iCb">Inspect cabin breaker panel</button> <button class="btn sec" id="iBb">Inspect battery shelter breakers</button></div>
+    <div class="row"><button class="btn sec" id="iBelt">Inspect alternator belt</button> <button class="btn sec" id="iBatt">Check battery strap &amp; terminals</button></div>
+    <div class="row"><button class="btn sec" id="iDoor">Check anti-theft (remote ‘Unlock’)</button></div>
+    <div id="inspOut"></div>
+   </div></div>`;
+  document.getElementById('mSel').onchange=e=>{S.meter=e.target.value; log('Meter on: '+e.target.selectedOptions[0].text); render();};
+  document.getElementById('mCb').onchange=e=>{S.meterCb=e.target.value; log('Meter on breaker output '+S.meterCb); render();};
+  const out=h=>document.getElementById('inspOut').innerHTML=h;
+  document.getElementById('iCb').onclick=()=>{ log('Cabin breaker panel inspected'); out(`<div class="callout">${CB.map(c=>`${c[0]} ${c[2]}: <b>${S.cb[c[0]]?'IN':'OUT'}</b>`).join('<br>')}</div>`); };
+  document.getElementById('iBb').onclick=()=>{ log('Battery shelter breakers inspected'); out(`<div class="callout">${BB.map(b=>`${b[0]} ${b[1]}: <b>${S.bb[b[0]]?'SET':'OUT'}</b>`).join('<br>')}<div class="src">RFM preflight: battery breakers all set.</div></div>`); };
+  document.getElementById('iBelt').onclick=()=>{ if(S.engine==="RUNNING"){ out(`<div class="callout bad">Shut the engine down before inspecting the belt.</div>`); return; } S.beltSeen=true; log('Alternator belt inspected');
+    out(`<div class="callout">Alternator belt: <b>${S.faults.has('beltBroken')?'BROKEN':'in place, no visible damage'}</b><div class="src">Replacement MM 50-C-14 (engine removal), tension 50-C-15.</div></div>`); render(); };
+  document.getElementById('iBatt').onclick=()=>{ log('Battery strap & terminals checked'); out(`<div class="callout">Battery strap secure, terminals tightened.<div class="src">RFM preflight; MM 71-A-01 step 5–6.</div></div>`); };
+  document.getElementById('iDoor').onclick=()=>{ log('Anti-theft checked (remote Unlock pressed)'); const was=S.locked; S.locked=false; S.faults.delete('antitheft');
+    out(`<div class="callout">${was?'Doors were <b>locked</b> — anti-theft was active. ‘Unlock’ pressed: starter enabled.':'Doors already unlocked — anti-theft disabled.'}<div class="src">MM Section F; RFM 7: unlocking / locking the doors also enables / disables the engine starter.</div></div>`); render(); };
+}
+function renderMeasLive(m){
+  const o=document.getElementById('measOut'); if(!o) return;
+  document.getElementById('mSel').value=S.meter; document.getElementById('mCb').value=S.meterCb;
+  document.getElementById('mCb').style.display = S.meter==='cb'?'':'none';
+  let v=0, n='';
+  if(S.meter==='batt'){ v=m.termV; n='Battery terminals are live whatever the MASTER position.'; }
+  else if(S.meter==='bus'){ v=m.bus?m.busV:0; n='Bus fed from the master relay output.'; }
+  else if(S.meter==='reg1'){ v=m.regEnabled?m.busV:0; n='Pin 1 ← ALT switch ← B6 ← bus (71-C-25).'; }
+  else if(S.meter==='reg6'){ v=S.bb.BB2?m.termV:0; n='Pin 6 ← BB2 ← battery (71-C-25).'; }
+  else { const id=S.meterCb; v=m.out(id)?(id==='B12'?m.termV:m.busV):0; n=id==='B12'?'B12 is fed direct from the battery.':'Breaker on the bus bar.'; }
+  o.textContent = v>0 ? '≈ '+v.toFixed(1)+' V DC' : '0.0 V DC';
+  document.getElementById('measNote').textContent=n;
+}
+
+/* ============================================================
+   SCENARIOS & PROCEDURE DRILL
+   ============================================================ */
+const SCEN=[
+  {id:'altlt',title:'ALT light stays ON after engine start',
+   brief:'After a normal start with Alternator ON, the ALT light stays ON and the EPM BATT indicator is yellow (battery not being charged). Engine running.',
+   pool:['b6Pop','bb2Pop','beltBroken','altFail'], extra:['b10Pop','b5Pop'],
+   setup:()=>{ S.master=true; S.pumpSw=true; S.alt=true; S.engine="RUNNING"; S.runT=30; S.relSinceStart=30; },
+   hint:'RFM: ALT light = alternator, regulator or battery charging malfunction. Follow the chain in 71-C-25: B6 → ALT switch → C-REG 1, BB2 → C-REG 6, belt → alternator.'},
+  {id:'epm',title:'EPM does not boot at MASTER ON',
+   brief:'Switching MASTER ON, the EPM screen stays dark.',
+   pool:['b5Pop','bb1Pop'], extra:['b10Pop','b8Pop'],
+   setup:()=>{},
+   hint:'MM Section F: check the EPM breaker, cycle the Master switch, check the battery. Look at what else is (or is not) powered.'},
+  {id:'crank',title:'Engine does not crank when pressing START',
+   brief:'MASTER ON, fuel pump ON. Pressing START: the engine does not crank and the STARTER light does not come on.',
+   pool:['antitheft','b1Pop','b9Pop'], extra:['b6Pop','b7Pop'],
+   setup:()=>{ S.master=true; S.pumpSw=true; },
+   hint:'MM Section F ‘Engine does not crank’. RFM 7: B1 feeds the starter relay, B9 the starter logic; starting protections.'},
+  {id:'nostart',title:'Engine cranks but does not start',
+   brief:'MASTER ON, fuel pump switch ON. The engine cranks normally but does not start.',
+   pool:['b7Pop'], extra:['b6Pop','b9Pop','b10Pop'],
+   setup:()=>{ S.master=true; S.pumpSw=true; },
+   hint:'RFM 4-11: Fuel pump ON, check fuel pressure increase. Which breaker feeds the fuel pump?'},
+  {id:'srstuck',title:'STARTER light stays ON after start',
+   brief:'Start the engine (MASTER ON, fuel pump ON, hold START). Watch the STARTER light after releasing the button, and apply the RFM corrective action.',
+   pool:['srStuck'], extra:['b1Pop','b9Pop'],
+   setup:()=>{ S.master=true; S.pumpSw=true; },
+   hint:'RFM Sect.3 caution lights table: STARTER (stays on).'}
+];
+const DRILL={title:'Procedure drill — Electrical fire (RFM Sect.3)',
+  brief:'Engine running, all normal. A strong smell of burning: apply the RFM electrical fire procedure (first three actions), then press Check.'};
+function buildScen(){
+  const p=document.getElementById('p-scen');
+  if(S.drill){
+    p.innerHTML=`<h3 style="margin-top:0">${DRILL.title}</h3><p>${DRILL.brief}</p><div class="row"><button class="btn" id="dCheck">Check</button> <button class="btn sec" id="dAb">Abandon</button></div><div id="dOut"></div>`;
+    document.getElementById('dAb').onclick=()=>{S.drill=null; resetAircraft(); buildScen(); render();};
+    document.getElementById('dCheck').onclick=()=>{
+      const st=S.drill.steps; const idx=k=>st.findIndex(s=>s===k);
+      const a=idx('ALT switch OFF'), mo=idx('MASTER OFF'), bk=idx('BARC switch BACKUP');
+      const m=model();
+      const okOrder = a>=0 && mo>a && bk>mo;
+      const remaining = `EPM: ${m.epm?'ON':'OFF'} · BARC: ${m.barcPowered?'powered':'OFF'} (green ${m.barcGreen?'ON':'OFF'}) · Plasma: ${m.plasma?'powered':'OFF'} · Engine: ${S.engine}`;
+      document.getElementById('dOut').innerHTML=`<div class="callout ${okOrder?'good':'bad'}"><b>${okOrder?'Correct sequence.':'Sequence not as RFM.'}</b> RFM: 1. Alternator OFF · 2. MASTER OFF · 3. NR switch to Backup · 4. Use NR lights to monitor rotor speed.<br>
+       Your actions: ${st.length?st.join(' → '):'none'}<br><br><b>Now:</b> ${remaining}<br>
+       <span class="src">RFM notes: EPM and NR lights no longer powered after MASTER OFF; remaining equipment on direct battery: BARC backup and ignition. With MASTER and alternator both OFF, engine still operates with both ignitions, but without the governor. ${SRC.RFM_3_FIRE}</span></div>`;
+    };
+    return;
+  }
+  if(!S.scenario){
+    p.innerHTML=`<p>Choose a troubleshooting scenario (a hidden fault is injected) or the procedure drill.</p>`+
+      SCEN.map(s=>`<div class="callout"><b>${s.title}</b><br><span class="src">${s.brief}</span><br><button class="btn" data-s="${s.id}" style="margin-top:6px">Start</button></div>`).join('')+
+      `<div class="callout good"><b>${DRILL.title}</b><br><span class="src">${DRILL.brief}</span><br><button class="btn" id="startDrill" style="margin-top:6px">Start drill</button></div>`;
+    p.querySelectorAll('button[data-s]').forEach(b=>b.onclick=()=>startScen(b.dataset.s));
+    document.getElementById('startDrill').onclick=()=>{ resetAircraft(); S.faults.clear(); Object.assign(S,{master:true,alt:true,pumpSw:true,engine:"RUNNING",runT:60,relSinceStart:60}); S.prevMaster=true; S.drill={steps:[]}; log('Drill started: electrical fire'); buildScen(); render(); };
+    return;
+  }
+  const sc=S.scenario; const opts=[...new Set(sc.def.pool.concat(sc.def.extra))].sort(()=>Math.random()-0.5);
+  p.innerHTML=`<h3 style="margin-top:0">${sc.def.title}</h3><p>${sc.def.brief}</p><details><summary>Hint</summary><p class="src">${sc.def.hint}</p></details>
+    <p><b>Your diagnosis:</b></p>${opts.map(f=>`<label class="opt"><input type="radio" name="dg" value="${f}"> ${FAULTS[f].name}</label>`).join('')}
+    <div class="row" style="margin-top:8px"><button class="btn" id="submitDg">Submit diagnosis</button> <button class="btn sec" id="abandon">Abandon scenario</button></div><div id="dgOut"></div>`;
+  document.getElementById('abandon').onclick=()=>{ S.faults.clear(); S.scenario=null; S.reveal=false; resetAircraft(); log('Scenario abandoned'); buildScen(); render(); };
+  document.getElementById('submitDg').onclick=()=>{
+    const v=(p.querySelector('input[name=dg]:checked')||{}).value; if(!v) return;
+    const ok=v===sc.fault, f=FAULTS[sc.fault], steps=S.actions.slice(sc.startIdx);
+    log('Diagnosis submitted: '+FAULTS[v].name+(ok?' — CORRECT':' — incorrect')); S.reveal=true; render();
+    document.getElementById('dgOut').innerHTML=`<div class="callout ${ok?'good':'bad'}"><b>${ok?'Correct.':'Not correct.'}</b> Injected fault: <b>${f.name}</b><br><b>Rectification:</b> ${f.rect}<br><span class="src">Sources: ${f.src.map(s=>SRC[s]).join(' · ')}</span>
+     <p style="margin:8px 0 2px"><b>Your actions (${steps.length}):</b></p><div class="log" style="max-height:140px">${steps.map(s=>'• '+s).join('<br>')||'none'}</div>
+     ${ok?'<button class="btn" id="rectify" style="margin-top:8px">Apply rectification &amp; verify</button>':''}</div>`;
+    const r=document.getElementById('rectify'); if(r) r.onclick=()=>{ applyRectify(sc.fault); S.scenario=null; S.reveal=false; log('Rectification applied — verify system operation'); buildScen(); render(); };
+  };
+}
+function startScen(id){
+  const def=SCEN.find(s=>s.id===id); resetAircraft(); S.faults.clear();
+  const fault=def.pool[Math.floor(Math.random()*def.pool.length)];
+  def.setup(); S.prevMaster=S.master; applyFault(fault);
+  S.scenario={def,fault,startIdx:S.actions.length}; S.reveal=false; log('Scenario started: '+def.title); buildScen(); render();
+}
+function applyFault(k){ const f=FAULTS[k]; S.faults.add(k); if(f.cb) S.cb[f.cb]=false; if(f.bb) S.bb[f.bb]=false; if(k==='antitheft') S.locked=true; }
+function applyRectify(k){ const f=FAULTS[k]; S.faults.delete(k); if(f.cb) S.cb[f.cb]=true; if(f.bb) S.bb[f.bb]=true; if(k==='antitheft') S.locked=false; S.crankT=0; }
+function resetAircraft(){ Object.assign(S,{master:false,alt:false,pumpSw:false,barc:"MAIN",locked:false,startHeld:false,crankT:0,relSinceStart:0,engine:"OFF",runT:0,beltSeen:false,noStartMsg:false}); CB.forEach(c=>S.cb[c[0]]=true); BB.forEach(b=>S.bb[b[0]]=true); S.prevMaster=false; }
+
+/* ============================================================
+   INSTRUCTOR
+   ============================================================ */
+function buildInstr(){
+  const p=document.getElementById('p-instr');
+  p.innerHTML=`<p>Inject or clear faults directly (visible to anyone at this screen — use for classroom demonstration). Tick <b>Show fault location on schematic</b> (under the schematic) to mark each injected fault in red.</p>
+   <table><tr><th>Inject</th><th>Fault</th><th>Source</th><th>Rectification</th></tr>
+   ${Object.entries(FAULTS).map(([k,f])=>`<tr><td><input type="checkbox" data-f="${k}" ${S.faults.has(k)?'checked':''}></td><td>${f.name}</td><td class="src">${f.src.map(s=>SRC[s]).join('<br>')}</td><td class="src">${f.rect}</td></tr>`).join('')}
+   </table><div class="row" style="margin-top:8px"><button class="btn sec" id="clrF">Clear all faults &amp; reset aircraft</button></div>`;
+  p.querySelectorAll('input[data-f]').forEach(c=>c.onchange=()=>{ const f=c.dataset.f; if(c.checked){applyFault(f);log('Instructor injected: '+FAULTS[f].name);} else {applyRectify(f);log('Instructor cleared: '+FAULTS[f].name);} render(); });
+  document.getElementById('clrF').onclick=()=>{ S.faults.clear(); S.scenario=null; S.drill=null; resetAircraft(); log('All faults cleared, aircraft reset'); buildInstr(); buildScen(); render(); };
+}
+
+/* ============================================================
+   SOURCES
+   ============================================================ */
+function buildSrc(){
+  const rules=[
+    ['Battery 12 V 25 Ah; alternator 13.7 V 60 A with voltage regulator',['RFM_7_7']],
+    ['MASTER grounds the master relay coil, fed via battery breaker BB1; master relay output feeds the bus, the starter relay and receives the alternator output',['MM_71C01','RFM_7_10','IPC_71']],
+    ['MASTER OFF: all systems disconnected except BARC backup, Plasma, doors remote control, 13.7 V aux socket',['RFM_7_7']],
+    ['Cabin breakers B1–B11 on the bus; B12 Plasma direct battery; loads per breaker as listed',['RFM_7_9','MM_71C01','MM_71A35']],
+    ['Battery breakers: BB1 Master relay, BB2 Voltage regulator reference, BB3 Auxiliaries (direct), BB4 BARC backup (direct)',['RFM_7_10','MM_71C01']],
+    ['Regulator enabled through B6 and the ALT switch (C-REG 1); reference from BB2 (C-REG 6); field to alternator (C-REG 3); ALT light from C-REG 2',['MM_71C25']],
+    ['Alternator belt-driven by the engine',['IPC_51','MM_50C14']],
+    ['ALT light: ON when not charging (ON before start; OFF after Alternator ON with engine running)',['RFM_3_LT','RFM_4_9','RFM_4_11']],
+    ['EPM BATT: green/white = charging, yellow = not charging',['RFM_3_EPM']],
+    ['Warning lights (ALT, OIL P, STARTER …) are fed by B10',['RFM_7_9','MM_71A35']],
+    ['OIL P light ON before start, OFF after start',['RFM_4_9','RFM_4_11']],
+    ['START → avionics relay (B1) → starter relay; starter logic on B9; avionics disconnected during start-up',['MM_71C01','MM_71C10','MM_71A35','RFM_7_9']],
+    ['STARTER light ON while the starter is energised; stays ON if the starter relay is stuck',['RFM_3_LT','RFM_4_11']],
+    ['No cranking if anti-theft active (doors locked by remote) or engine already running with cranking released > 80 s',['RFM_7_7','RFM_7_19','MM_F']],
+    ['Start requires the fuel pump running (fuel pressure increase); fuel pump on B7',['RFM_4_11','RFM_7_9','MM_F']],
+    ['Engine keeps running with MASTER and ALT OFF (both ignitions; no governor)',['RFM_3_FIRE']],
+    ['BARC main supply from B8; Backup: direct battery (BB4), central green light active',['RFM_7_17','MM_71C01','RFM_7_10']],
+    ['Electrical fire: Alternator OFF, MASTER OFF, NR switch to Backup',['RFM_3_FIRE']],
+    ['EPM does not boot: check EPM breaker, cycle Master, check battery charged',['MM_F']]
+  ];
+  const notSim=[
+    'Exact voltages and currents beyond nominal 12 V / 13.7 V — no values tabulated in the sources.',
+    'Battery state of charge and discharge over time without alternator (RFM caution only: prolonged flight without alternator can lead to loss of electrical equipment).',
+    'ALT light flicker at idle (RFM 4-11 Note 5: check it goes off above 1500 RPM) — engine RPM is not simulated.',
+    'GOV OFF, CLUTCH, BRAKE, MGB T, NR lights, BARC test sequence and horn, governor, clutch, carb heat, radios, lights (landing/nav/strobe) — shown only as supplied / not supplied.',
+    'Effect of B12 (Plasma) out on engine running — not stated in the sources; only the supply state is shown.',
+    'Oil pressure system — OIL P light simply follows engine OFF / RUNNING.',
+    'Fuel system details — see the Cabri G2 fuel module.'
+  ];
+  const oq=[
+    ['B1 rating','RFM 7-9 breaker panel shows B1 Radios/Avionics/Starter 10 A; MM 71-C-01 shows B1 Radios – Starter 15 A; MM 71-A-35 says the size is variable (72-C-10). Rating not displayed in the sim.'],
+    ['B3 name','RFM 7-9: “Nav lights”; MM 71-C-01: “Lighting”.'],
+    ['Battery capacity','RFM 7-7: 25 Ah; MM 71-A-35 note: 24 A.h.'],
+    ['Ammeter part number','IPC 7.1-00 battery box lists a “current sensor” HG77-1206 (item 23); MM 71-C-01 labels the sensor on the alternator line “Ammeter”. Mapping to be confirmed.'],
+    ['B11 / spares','MM 71-C-01 shows B11 Spare 15 A; RFM 7-9 shows (Spare) positions without rating.'],
+    ['Panel switch P/Ns','IPC 7.2-00 lists several switch P/Ns without naming which panel switch is which. Not shown.']
+  ];
+  document.getElementById('p-src').innerHTML=`<h3 style="margin-top:0">What the simulator does, and where it comes from</h3>
+   <p class="src">Only behaviour stated in the source documents is simulated.</p>
+   <table><tr><th>Behaviour</th><th>Source</th></tr>${rules.map(r=>`<tr><td>${r[0]}</td><td class="src">${r[1].map(x=>SRC[x]).join('<br>')}</td></tr>`).join('')}</table>
+   <h3>Not simulated</h3><ul>${notSim.map(x=>`<li>${x}</li>`).join('')}</ul>
+   <h3>Open questions / document discrepancies</h3>
+   <table><tr><th>#</th><th>Topic</th><th>Detail</th></tr>${oq.map((q,i)=>`<tr><td>OQ${i+1}</td><td>${q[0]}</td><td>${q[1]}</td></tr>`).join('')}</table>
+   <h3>Source register (this module)</h3><table><tr><th>Document</th><th>Revision</th></tr>
+    <tr><td>MM J70-002 Maintenance Manual &amp; ICA</td><td>Issue 08</td></tr><tr><td>RFM J40-001 Flight Manual</td><td>Issue 11</td></tr>
+    <tr><td>Illustrated Parts Catalog G2</td><td>printed 2026-11-21 (support.guimbal.com)</td></tr></table>`;
+}
+
+/* ============================================================
+   UI WIRING
+   ============================================================ */
+function activateTab(t){ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('act',x.dataset.t===t)); document.querySelectorAll('.tabpanel').forEach(x=>x.classList.toggle('hidden',x.id!=='p-'+t)); }
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>activateTab(t.dataset.t));
+document.getElementById('swMaster').onclick=()=>{S.master=!S.master; render();};
+document.getElementById('swAlt').onclick=()=>{S.alt=!S.alt; log('ALT switch '+(S.alt?'ON':'OFF')); render();};
+document.getElementById('swPump').onclick=()=>{S.pumpSw=!S.pumpSw; log('Fuel pump switch '+(S.pumpSw?'ON':'OFF')); render();};
+document.getElementById('swBarc').onclick=()=>{S.barc=S.barc==="MAIN"?"BACKUP":"MAIN"; log('BARC switch '+S.barc); render();};
+const sb=document.getElementById('btnStart');
+const startDown=e=>{ e.preventDefault(); if(S.startHeld) return; S.startHeld=true; S.noStartMsg=false; const m=model();
+  log('START pressed'+(m.crankCmd?'':' — no cranking')); render(); };
+const startUp=()=>{ if(!S.startHeld) return; S.startHeld=false; log('START released'); render(); };
+sb.addEventListener('pointerdown',startDown); sb.addEventListener('pointerup',startUp); sb.addEventListener('pointerleave',startUp); sb.addEventListener('pointercancel',startUp);
+document.getElementById('btnStop').onclick=()=>{ S.engine="OFF"; S.runT=0; S.relSinceStart=0; log('Engine shut down (mixture OFF)'); render(); };
+document.getElementById('showFaults').onchange=e=>{ S.showFaults=e.target.checked; log('Fault location display '+(S.showFaults?'ON':'OFF')); render(); };
+document.getElementById('btnLock').onclick=()=>{ S.locked=true; log('Doors locked by remote'); render(); };
+document.getElementById('btnUnlock').onclick=()=>{ S.locked=false; S.faults.delete('antitheft'); log('Doors unlocked by remote'); render(); };
+function buildPanels(){
+  document.getElementById('cbPanel').innerHTML=CB.map(c=>`<div class="cbx" data-id="${c[0]}" title="${c[2]}"><b>${c[0]}</b>${c[1]?c[1]+' A':'&nbsp;'}</div>`).join('');
+  document.getElementById('bbPanel').innerHTML=BB.map(b=>`<div class="cbx" data-id="${b[0]}"><b>${b[0]}</b>${b[1]}</div>`).join('');
+  document.querySelectorAll('#cbPanel .cbx').forEach(d=>d.onclick=()=>{ const id=d.dataset.id; S.cb[id]=!S.cb[id];
+    if(S.cb[id]){ log(id+' reset'); Object.entries(FAULTS).forEach(([k,f])=>{ if(f.cb===id) S.faults.delete(k); }); } else log(id+' pulled'); render(); });
+  document.querySelectorAll('#bbPanel .cbx').forEach(d=>d.onclick=()=>{ const id=d.dataset.id; S.bb[id]=!S.bb[id];
+    if(S.bb[id]){ log(id+' set'); Object.entries(FAULTS).forEach(([k,f])=>{ if(f.bb===id) S.faults.delete(k); }); } else log(id+' pulled'); render(); });
+}
+function flashMsg(t){ S.msg=t; S.msgT=4; }
+
+const BRIEF={
+  batt:"12 V 25 Ah lead-acid battery; source of all power with the engine stopped.",
+  mr:"Connects the battery to the bus, starter relay and alternator output (MASTER).",
+  sr:"Switches battery power to the starter when START is pressed.",
+  starter:"Cranks the engine.",
+  alt:"13.7 V 60 A engine-driven alternator; charges the battery and feeds the bus.",
+  belt:"Drives the alternator from the engine.",
+  reg:"Controls the alternator; drives the ALT light.",
+  amm:"Measures alternator current for the EPM BATT indication.",
+  bbp:"BB1 master relay · BB2 regulator reference · BB3 auxiliaries · BB4 BARC backup.",
+  master:"Closes the master relay (grounds its coil).",
+  altsw:"Enables the voltage regulator (B6 → C-REG pin 1).",
+  bus:"Main bus bar supplying cabin breakers B1–B11.",
+  cbp:"Push-pull breakers protecting each circuit (B12 direct battery).",
+  avr:"Supplies avionics; disconnects them during cranking.",
+  start:"Starts the engine; protections: anti-theft, already running.",
+  plasma:"Electronic ignition on direct battery (B12).",
+  aux:"Door lock, magneto disabling during cranking, 13.7 V socket (direct battery).",
+  barc:"Rotor/fuel alarm unit; main supply B8, backup direct battery.",
+  warn:"B10: ALT, OIL P, STARTER, CLUTCH, BRAKE, GOV OFF, MGB T lights.",
+  epm:"Displays BATT charge indicator (B5).",
+  altlt:"Amber: alternator, regulator or battery charging malfunction."
+};
+function buildKey(){
+  document.getElementById('keyTable').innerHTML='<div class="keygrid">'+KEY.map((k,i)=>`<div class="keyitem" data-k="${k[0]}"><div class="n">${i+1}</div><div><div class="nm">${COMP[k[0]].name}</div><div class="fd">${BRIEF[k[0]]}</div></div></div>`).join('')+'</div>';
+  document.querySelectorAll('.keyitem').forEach(d=>d.onclick=()=>select(d.dataset.k));
+}
+
+buildSchematic(); buildKey(); buildPanels(); buildMeas(); buildScen(); buildInstr(); buildSrc();
+document.getElementById('p-info').innerHTML='<p class="src" style="font-size:14px">Click any component on the schematic, a number, or a line in the key to see its function, part number, MM tasks and sources.</p>'; activateTab('info');
+log('Simulator loaded. Aircraft cold & dark.');
+let last=performance.now();
+setInterval(()=>{ const n=performance.now(); step(Math.min(0.5,(n-last)/1000)); last=n; },200);
+render();
+</script>
+</body>
+</html>
