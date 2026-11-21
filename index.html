@@ -114,6 +114,8 @@ select{font:inherit;padding:4px 6px;border-radius:6px;border:1px solid var(--lin
 svg .dot{stroke:#333;stroke-width:1}
 #schem text{font-size:16.5px}
 #schem text.small{font-size:14.5px}
+#svgA text,#svgB text,#svgC text{font-size:15px}
+#svgA text.small,#svgB text.small,#svgC text.small{font-size:13px}
 </style>
 <header>
   <h1>Cabri G2 Electrical System — Maintenance Training Simulator <span style="font-weight:400;opacity:.8">· Test v0.1</span></h1>
@@ -122,14 +124,25 @@ svg .dot{stroke:#333;stroke-width:1}
 
 <main>
   <section class="card">
-    <h2>System schematic (simplified layout — click any component)</h2>
-    <svg id="schem" viewBox="0 0 1120 728" aria-label="Electrical system schematic"></svg>
+    <h2>System schematic — click any component</h2>
+    <div class="row" id="viewTabs" style="margin-bottom:6px">
+      <button class="btn" data-v="svgA">71-C-01 Power generation &amp; distribution</button>
+      <button class="btn sec" data-v="svgB">71-C-10 Starting &amp; clutching</button>
+      <button class="btn sec" data-v="svgC">71-C-25 Alternator circuit</button>
+      <button class="btn sec" data-v="schem">Overview (simplified)</button>
+    </div>
+    <svg id="svgA" viewBox="0 0 1120 900" aria-label="71-C-01"></svg>
+    <svg id="svgB" viewBox="0 0 1120 940" aria-label="71-C-10" class="hidden"></svg>
+    <svg id="svgC" viewBox="0 0 1120 620" aria-label="71-C-25" class="hidden"></svg>
+    <svg id="schem" viewBox="0 0 1120 728" aria-label="Electrical system schematic overview" class="hidden"></svg>
+    <div class="src" id="viewCap" style="margin-top:4px"></div>
     <div class="legend">
       <span style="--c:var(--elec)">Wire energised</span>
       <span style="--c:var(--elec-dim)">Wire de-energised</span>
       <span style="--c:#7a5cc7">Control line energised</span>
       <span style="--c:#29c26a">Load supplied (dot)</span>
       <span style="--c:#d93a3a">Fault location (when shown)</span>
+      <span style="--c:#c3c8d0">Grey: drawn as in the MM, not simulated (n/s)</span>
     </div>
     <label class="opt" style="margin-top:4px"><input type="checkbox" id="showFaults"> <b>Show fault location on schematic</b> <span class="src">(instructor / teaching — leave OFF while a student works a scenario; shown automatically after a diagnosis is submitted)</span></label>
     <h2 style="margin-top:14px">Component key — function</h2>
@@ -294,6 +307,27 @@ const COMP = {
   epm:{name:"EPM (B5)",pn:"—",ipc:"—",
     fn:"Fed by B5 ‘EPM – Hourmeter – BARC A2’. Shows the battery charge indicator BATT: green or white = battery being charged; yellow = not being charged.",
     mm:["F: EPM does not boot at MASTER ON"],src:["RFM_7_9","RFM_3_EPM","MM_F"]},
+  maginh:{name:"Magneto inhibition during cranking (1\" timer, MAGN switch, magneto)",pn:"—",ipc:"—",
+    fn:"Drawn per MM 71-C-10: the START signal triggers a 1-second block that grounds the magneto through the MAGN switch. MM Section F (engine kickback): pressing the starter button grounds the magneto P-lead, lasting about one second after the button is released. RFM 7-10: ‘Magneto disabling during cranking’ is on the Auxiliaries battery breaker. Not simulated.",
+    mm:["71-C-10","F: Engine kickback during starting"],src:["MM_71C10","MM_F","RFM_7_10"]},
+  startlogic:{name:"Starting circuit logic (AND gate, 1' timer, D15/D16)",pn:"—",ipc:"—",
+    fn:"Drawn per MM 71-C-10: the first starter relay coil returns to ground through a timed AND block, the antitheft contact, diode D15 and the engine oil pressure switch (< 1 bar), or through D16 from the TBRR relay. The MM does not describe this logic in words; the simulator applies the starting protections stated in RFM 7 (anti-theft; no cranking when already running and cranking released > 80 s). Internal logic not simulated.",
+    mm:["71-C-10"],src:["MM_71C10","MM_71C01","RFM_7_7"]},
+  antitheft:{name:"Antitheft contact",pn:"—",ipc:"—",
+    fn:"In the starting logic ground path (MM 71-C-10). Doors locked by remote: starter disabled; unlocking enables the starter (RFM 7). Position shown live.",
+    mm:["F: Engine does not crank"],src:["MM_71C10","RFM_7_19","RFM_7_7","MM_F"]},
+  oilpsw:{name:"Engine oil pressure switch (> 1 bar / < 1 bar) and OIL P light",pn:"—",ipc:"—",
+    fn:"Drawn per MM 71-C-10: switch in the starting logic and the OIL P light circuit (B10). OIL P light (red): low oil pressure (RFM 3); ON before start, OFF within 30 s after start (RFM 4). In the simulator the switch follows engine OFF / RUNNING.",
+    mm:["71-C-10"],src:["MM_71C10","RFM_3_LT","RFM_4_11"]},
+  tbrr:{name:"TBRR relay, hourmeter (flight / ground)",pn:"—",ipc:"—",
+    fn:"Drawn per MM 71-C-10 / 71-C-01: TBRR relay coil fed from B9 via D8 and driven by the BARC (TBRR output). Its flight/ground contacts switch the hourmeter (B5), the starting logic (D16) and the BRAKE light path (D17). RFM 7-17: BARC ‘rotor in flying mode’ signal — activation NR ≥ 450 RPM, deactivation NR ≤ 400 RPM. Not simulated.",
+    mm:["71-C-10","71-C-01"],src:["MM_71C10","MM_71C01","RFM_7_17"]},
+  brake:{name:"Rotor brake switch and BRAKE light",pn:"—",ipc:"—",
+    fn:"Rotor brake switch (Engaged → ground) lights the BRAKE light (amber, B10) via D34 (MM 71-C-10). RFM 7: the switch triggers the BRAKE light and prevents clutching when the brake is applied or seized. Not simulated.",
+    mm:["71-C-10"],src:["MM_71C10","RFM_3_LT","RFM_7_7"]},
+  clutch:{name:"Clutch circuit (CLUTCH switch, polyswitches, distributor motor, 4-way valve, cylinder, < 4 bar switch, CLUTCH light)",pn:"polyswitches harness G71-51-200 (IPC)",ipc:"—",
+    fn:"Drawn per MM 71-C-10: B7 → two polyswitches → CLUTCH switch (Eng./Diseng.) → distributor motor M → 4-way valve → clutch cylinder, fed by the engine mechanical oil pump; a < 4 bar pressure switch lights the CLUTCH light. RFM 7: actuator fed by engine oil pressure through a four-way distributor; frozen if electrical power is shut down; non-return valve keeps the clutch engaged; CLUTCH light OFF above 3.6 bar. MM 51-B-01: distributor finger moves stop to stop in < 5 s; polyswitch-protected motor. Not simulated.",
+    mm:["51-B-01","51-B-04 polyswitch replacement","71-C-10"],src:["MM_71C10","RFM_7_7","RFM_3_LT"]},
   altlt:{name:"ALT light (amber)",pn:"—",ipc:"—",
     fn:"Alternator, regulator or battery charging malfunction. Driven from C-REG pin 2 via the ancillaries board; powered by B10. ON before start; must go OFF after Alternator ON. May flicker at idle — check it goes off above 1500 RPM.",
     mm:["H-1 step 25"],src:["RFM_3_LT","MM_71C25","RFM_4_9","RFM_4_11","MM_H1"]}
@@ -419,15 +453,16 @@ function step(dt){
 /* ============================================================
    SCHEMATIC
    ============================================================ */
-const svg=document.getElementById('schem');
+let svg=document.getElementById('schem');
 // layout scale: geometry is authored on a 1000×560 grid and spread to 1120×728; text size is set separately (CSS)
-const SX=1.12, SY=1.3;
+let SX=1.12, SY=1.3;
+const SDO = d => d.replace(/([ML])\s*(-?[\d.]+)\s+(-?[\d.]+)/g,(a,c,x,y)=>`${c}${(+x*1.12).toFixed(1)} ${(+y*1.3).toFixed(1)}`);
 const SD = d => d.replace(/([ML])\s*(-?[\d.]+)\s+(-?[\d.]+)/g,(a,c,x,y)=>`${c}${(+x*SX).toFixed(1)} ${(+y*SY).toFixed(1)}`);
 function el(tagN,attrs,parent){ const e=document.createElementNS("http://www.w3.org/2000/svg",tagN);
-  for(const k in attrs){ let v=attrs[k];
+  for(const k in attrs){ let v=attrs[k]; if(v===null||v===undefined) continue;
     if(k==='x'||k==='cx'||k==='width') v=(+v)*SX;
     else if(k==='y'||k==='cy'||k==='height') v=(+v)*SY;
-    else if(k==='r') v=(+v)*1.15;
+    else if(k==='r') v=(+v)*(SX===1?1:1.15);
     else if(tagN==='ellipse'&&k==='rx') v=(+v)*SX;
     else if(tagN==='ellipse'&&k==='ry') v=(+v)*SY;
     else if(k==='d') v=SD(v);
@@ -438,7 +473,8 @@ function comp(id){ const g=el('g',{class:'comp','data-id':id}); g.addEventListen
 const KEY=[['batt','Battery'],['mr','Master relay'],['sr','Starter relay'],['starter','Starter'],['alt','Alternator'],['belt','Alternator belt'],
   ['reg','Voltage regulator'],['amm','Ammeter'],['bbp','Battery breakers'],['master','MASTER switch'],['altsw','ALT switch'],['bus','Bus bar'],
   ['cbp','Cabin breakers'],['avr','Avionics relay'],['start','START + logic'],['plasma','Plasma ignition'],['aux','Auxiliaries'],['barc','BARC'],
-  ['warn','Warning lights'],['epm','EPM'],['altlt','ALT light']];
+  ['warn','Warning lights'],['epm','EPM'],['altlt','ALT light'],
+  ['maginh','Magneto inhibition'],['startlogic','Starting logic'],['antitheft','Antitheft'],['oilpsw','Oil pressure switch'],['tbrr','TBRR relay / hourmeter'],['brake','Rotor brake switch'],['clutch','Clutch circuit']];
 const KEYNUM={}; KEY.forEach((k,i)=>KEYNUM[k[0]]=i+1);
 function badge(id,x,y){ const g=el('g',{class:'comp'}); g.addEventListener('click',()=>select(id));
   el('circle',{cx:x,cy:y,r:8.5,fill:'#2b4c7e'},g); const t=txt(x,y+4,String(KEYNUM[id]),'',g); t.style.fill='#fff'; t.style.fontSize='12px'; t.style.fontWeight='700'; }
@@ -530,6 +566,9 @@ function setWire(id,on,ctl){ const w=document.getElementById(id); if(w) w.setAtt
 function setDot(id,on){ const d=document.getElementById(id); if(d) d.setAttribute('fill', on?'#29c26a':'#ccc'); }
 
 function drawFaultLayer(){
+  const sv=svg, sx=SX, sy=SY; svg=document.getElementById('schem'); SX=1.12; SY=1.3; try{ drawFaultLayer0(); } finally { svg=sv; SX=sx; SY=sy; }
+}
+function drawFaultLayer0(){
   let L=document.getElementById('faultLayer'); if(L) L.remove();
   if(!(S.showFaults||S.reveal) || !S.faults.size) return;
   L=el('g',{id:'faultLayer'}); L.style.pointerEvents='none';
@@ -571,8 +610,8 @@ function render(){
   // schematic
   setWire('wBatt',true); setWire('wDirect',true);
   setWire('wMRout',m.mrClosed); setWire('wBusCable',m.bus);
-  document.getElementById('mrBlade').setAttribute('d', SD(m.mrClosed?'M212 306 L248 306':'M212 306 L246 296'));
-  document.getElementById('srBlade').setAttribute('d', SD(m.starterOn?'M412 306 L448 306':'M412 306 L446 296'));
+  document.getElementById('mrBlade').setAttribute('d', SDO(m.mrClosed?'M212 306 L248 306':'M212 306 L246 296'));
+  document.getElementById('srBlade').setAttribute('d', SDO(m.starterOn?'M412 306 L448 306':'M412 306 L446 296'));
   setWire('wSR',m.starterOn); document.getElementById('starterC').setAttribute('fill',m.starterOn?'#ffe7c2':'#fff');
   setWire('wStartCtl',m.crankCmd||m.starterOn,true); document.getElementById('startBox').setAttribute('fill',S.startHeld?'#efe7ff':'#fff');
   setWire('wAltOut',m.charging); setWire('wField',m.charging); document.getElementById('altC').setAttribute('fill',m.charging?'#e2f6e9':'#fff');
@@ -596,7 +635,8 @@ function render(){
   document.getElementById('engBox').setAttribute('fill',S.engine==="RUNNING"?'#e2f6e9':'#eef1f5');
   document.getElementById('engTxt').textContent = S.engine==="RUNNING"?'RUNNING':(m.starterOn?'CRANKING':'OFF');
   document.getElementById('btnStop').disabled = S.engine!=="RUNNING";
-  drawFaultLayer();
+  renderFull(m);
+  drawFaultLayers();
   renderMeasLive(m);
 }
 
@@ -797,6 +837,10 @@ function buildSrc(){
     ['Battery capacity','RFM 7-7: 25 Ah; MM 71-A-35 note: 24 A.h.'],
     ['Ammeter part number','IPC 7.1-00 battery box lists a “current sensor” HG77-1206 (item 23); MM 71-C-01 labels the sensor on the alternator line “Ammeter”. Mapping to be confirmed.'],
     ['B11 / spares','MM 71-C-01 shows B11 Spare 15 A; RFM 7-9 shows (Spare) positions without rating.'],
+    ['BB numbering','MM 71-C-01 and 71-C-25 show BB1 in the master relay coil circuit and BB2 feeding the voltage regulator; MM 71-C-10 labels the breaker in the MASTER switch circuit “BB2”. Shown as “BB2*” on the 71-C-10 page; the simulator uses 71-C-01 / 71-C-25.'],
+    ['Avionics relay / First starter relay','71-C-01 names the B1 relay commanded by START “Avionics relay”; 71-C-10 names a relay with the same connections (B1, START, radios, starter relay coil) “First starter relay”. Treated as the same relay — to confirm.'],
+    ['CLUTCH light threshold','RFM 7: CLUTCH light goes OFF above 3.6 bar; MM 71-C-10 pressure switch marked “< 4 Bar”.'],
+    ['Breaker ratings on MM pages','The 71-C-01 page shows the MM values (B1 15 A, B11 15 A); RFM 7-9 shows B1 10 A.'],
     ['Panel switch P/Ns','IPC 7.2-00 lists several switch P/Ns without naming which panel switch is which. Not shown.']
   ];
   document.getElementById('p-src').innerHTML=`<h3 style="margin-top:0">What the simulator does, and where it comes from</h3>
@@ -859,14 +903,368 @@ const BRIEF={
   barc:"Rotor/fuel alarm unit; main supply B8, backup direct battery.",
   warn:"B10: ALT, OIL P, STARTER, CLUTCH, BRAKE, GOV OFF, MGB T lights.",
   epm:"Displays BATT charge indicator (B5).",
-  altlt:"Amber: alternator, regulator or battery charging malfunction."
+  altlt:"Amber: alternator, regulator or battery charging malfunction.",
+  maginh:"Grounds the magneto ~1 s at START (MM 71-C-10, MM F). Not simulated.",
+  startlogic:"Starter relay coil ground path (timer, antitheft, oil pressure). Logic not simulated.",
+  antitheft:"Opens the start circuit when doors are locked by remote.",
+  oilpsw:"> 1 bar / < 1 bar switch; drives OIL P light and starting logic.",
+  tbrr:"Flight/ground relay driven by BARC; switches hourmeter, logic, BRAKE path. Not simulated.",
+  brake:"Rotor brake switch → BRAKE light; prevents clutching. Not simulated.",
+  clutch:"CLUTCH switch, distributor motor, 4-way valve, cylinder, CLUTCH light. Not simulated."
 };
 function buildKey(){
   document.getElementById('keyTable').innerHTML='<div class="keygrid">'+KEY.map((k,i)=>`<div class="keyitem" data-k="${k[0]}"><div class="n">${i+1}</div><div><div class="nm">${COMP[k[0]].name}</div><div class="fd">${BRIEF[k[0]]}</div></div></div>`).join('')+'</div>';
   document.querySelectorAll('.keyitem').forEach(d=>d.onclick=()=>select(d.dataset.k));
 }
 
-buildSchematic(); buildKey(); buildPanels(); buildMeas(); buildScen(); buildInstr(); buildSrc();
+/* ============================================================
+   FULL DIAGRAM PAGES — redrawn from MM 71-C-01, 71-C-10, 71-C-25
+   Live colour = simulated. Grey (#c3c8d0) = drawn as in the MM, not simulated.
+   ============================================================ */
+const NS='#c3c8d0';
+function onPage(id,sx,sy){ svg=document.getElementById(id); SX=sx; SY=sy; }
+function W(id,d,ex){ return el('path',Object.assign({id,class:'wire',d},ex||{})); }
+function NW(d,ex){ return el('path',Object.assign({class:'wire',d,stroke:NS},ex||{})); }
+function HYD(d){ return el('path',{d,fill:'none',stroke:NS,'stroke-width':7,'stroke-linejoin':'round'}); }
+function arr(x,y,col){ el('path',{d:`M${x-9} ${y-5} L${x} ${y} L${x-9} ${y+5} Z`,fill:col||'#888'}); }
+function chassis(x,y){ el('path',{d:`M${x} ${y} L${x} ${y+8} M${x-11} ${y+8} L${x+11} ${y+8} M${x-11} ${y+16} L${x-3} ${y+8} M${x-4} ${y+16} L${x+4} ${y+8} M${x+3} ${y+16} L${x+11} ${y+8}`,stroke:'#555','stroke-width':1.5,fill:'none'}); }
+function earth(x,y){ ground(x,y); }
+function bx(id,x,y,w,h,lines,o){ o=o||{}; const g=comp(id);
+  el('rect',{id:o.rid||null,x,y,width:w,height:h,rx:o.rx??5,fill:o.fill||(o.ns?'#f1f2f4':'#fff'),stroke:o.ns?'#aab0ba':'#333','stroke-width':o.sw||1.8,'stroke-dasharray':o.dash||null},g);
+  (lines||[]).forEach((t,i)=>{ const tt=txt(x+w/2,y+h/2+5+(i-(lines.length-1)/2)*16,t,o.big?'':'small',g); if(o.ns) tt.style.fill='#8a919c'; });
+  if(o.ns){ const n=txt(x+w-3,y+h-4,'n/s','small',g,'end'); n.style.fontSize='10px'; n.style.fill='#a0a6b0'; n.style.fontStyle='italic'; }
+  return g; }
+function pill(x,y,t,ns){ const w=t.length*7.6+16; el('rect',{x:x-w/2,y:y-13,width:w,height:20,rx:7,fill:ns?'#f1f2f4':'#eef0f3',stroke:ns?'#aab0ba':'#555'}); const tt=txt(x,y+2,t,'small'); if(ns) tt.style.fill='#8a919c'; }
+function lamp(id,cx,cy,label,ns){ const g=comp(id); el('circle',{id:'L_'+cx+'_'+cy,cx,cy,r:13,fill:'#555',stroke:'#222'},g); return g; }
+function dio(x,y,dir,label){ // small diode symbol, dir r|l|u|d
+  const P={r:`M${x-6} ${y-6} L${x+5} ${y} L${x-6} ${y+6} Z M${x+5} ${y-6} L${x+5} ${y+6}`, l:`M${x+6} ${y-6} L${x-5} ${y} L${x+6} ${y+6} Z M${x-5} ${y-6} L${x-5} ${y+6}`,
+           u:`M${x-6} ${y+6} L${x} ${y-5} L${x+6} ${y+6} Z M${x-6} ${y-5} L${x+6} ${y-5}`, d:`M${x-6} ${y-6} L${x} ${y+5} L${x+6} ${y-6} Z M${x-6} ${y+5} L${x+6} ${y+5}`};
+  el('path',{d:P[dir],fill:'#555',stroke:'#555','stroke-width':1.2});
+  if(label){ const t=txt(x+(dir==='u'||dir==='d'?-10:0),y+(dir==='u'||dir==='d'?4:-10),label,'small',null,dir==='u'||dir==='d'?'end':'middle'); t.style.fontStyle='italic'; t.style.fontSize='11px'; } }
+function brkP(pfx,id,x,y,key){ const g=comp(key); el('rect',{id:pfx+'r-'+id,x,y,width:42,height:22,rx:4,fill:'#fff',stroke:'#555','stroke-width':1.8},g); const t=txt(x+21,y+15,id,'small',g); t.style.fontWeight='700'; t.style.fill='#333'; }
+function relayBox(id,pfx,x,y,label,lblY){ const g=comp(id); el('rect',{x,y,width:52,height:46,rx:4,fill:'#fff',stroke:'#333','stroke-width':1.8},g);
+  el('path',{id:pfx+'Blade',d:`M${x+8} ${y+14} L${x+44} ${y+14}`,stroke:'#333','stroke-width':3},g);
+  el('path',{d:`M${x+18} ${y+28} q6 -6 12 0 q6 6 12 0`,stroke:'#555','stroke-width':1.5,fill:'none'},g);
+  txt(x+26,lblY,label,'small',g); }
+const AMPS_MM={B1:'15 A',B2:'10 A',B3:'10 A',B4:'10 A',B5:'5 A',B6:'5 A',B7:'5 A',B8:'5 A',B9:'5 A',B10:'5 A',B11:'15 A',B12:'5 A'};
+const NAMES_MM={B1:'Radios – Starter',B2:'Landing light',B3:'Lighting',B4:'Strobe – Trim',B5:'EPM – Hourmeter – BARC A2',B6:'Alternator',B7:'Pump – Clutch – Carb. heating',B8:'BARC A1',B9:'Ancillaries – RRM',B10:'Warning lights',B11:'Spare',B12:'Plasma'};
+const KEYOF={B1:'avr',B5:'epm',B6:'altsw',B8:'barc',B9:'start',B10:'warn'};
+
+/* ---------------- PAGE A : 71-C-01 ---------------- */
+function buildPageA(){
+  onPage('svgA',1,1);
+  el('rect',{x:4,y:4,width:1112,height:892,rx:10,fill:'#fbfaf6',stroke:'#ece6d8'});
+  // bus bar
+  let g=comp('bus'); el('rect',{x:40,y:40,width:16,height:450,rx:3,fill:'#555'},g);
+  'BUS BAR'.split('').forEach((c,i)=>{ if(c!==' ') { const t=txt(24,160+i*20,c,'',g); t.style.fontWeight='700'; } });
+  W('aFeed','M48 40 L48 20 L900 20 L900 300',{'stroke-width':3.5});
+  for(let i=0;i<11;i++){ const id='B'+(i+1), y=50+i*42;
+    W('aF'+id,`M56 ${y+11} L66 ${y+11}`); brkP('a',id,66,y,KEYOF[id]||'cbp');
+    txt(114,y+5,AMPS_MM[id]+'  '+NAMES_MM[id],'small',null,'start'); }
+  [2,3,4,7,11].forEach(n=>{ const y=50+(n-1)*42+11; W('aOB'+n,`M108 ${y} L300 ${y}`); arr(310,y); });
+  W('aOB1','M108 61 L340 61 L340 712 L520 712');
+  W('aOB5','M108 229 L430 229 L430 486 L640 486');
+  W('aOB6','M108 271 L470 271');
+  W('aOB8','M108 355 L400 355 L400 516 L590 516'); dio(598,516,'r','D1 (in line)'); W('aD1','M604 516 L640 516');
+  W('aOB9','M108 397 L370 397 L370 732 L430 732');
+  W('aOB10','M108 439 L600 439 L600 400 L627 400');
+  // B12 (direct battery) + aux
+  W('aFB12','M14 880 L14 523 L66 523'); brkP('a','B12',66,512,'plasma'); txt(114,516,AMPS_MM.B12+'  Plasma','small',null,'start');
+  W('aOB12','M108 523 L300 523'); arr(310,523);
+  W('aAux','M1080 384 L1080 860 L26 860 L26 562 L300 562'); arr(310,562); txt(114,556,'Ancillaries – Aux power socket','small',null,'start');
+  // ALT switch, regulator, alternator
+  g=comp('altsw'); el('rect',{x:470,y:258,width:50,height:26,rx:4,fill:'#fff',stroke:'#333','stroke-width':1.8},g); el('text',{id:'aAltSwTxt',x:495,y:276,'text-anchor':'middle',class:'small'},g); pill(495,302,'ALT.');
+  W('aAltEn','M520 271 L560 271 L560 80 L740 80');
+  bx('reg',740,50,100,50,['Alternator','regulator']); el('path',{d:'M840 92 L862 92 L862 104',stroke:'#555','stroke-width':1.5,fill:'none'}); chassis(862,104);
+  W('aField','M790 100 L790 168');
+  g=comp('alt'); el('circle',{id:'aAltC',cx:790,cy:190,r:22,fill:'#fff',stroke:'#333','stroke-width':1.8},g); txt(790,195,'Alt.','small',g);
+  el('path',{d:'M768 190 L744 190 L744 200',stroke:'#555','stroke-width':1.5,fill:'none'}); earth(744,200);
+  W('aAltOut','M812 190 L860 190 L860 300');
+  g=comp('amm'); el('ellipse',{cx:860,cy:248,rx:14,ry:7,fill:'none',stroke:'#222','stroke-width':3},g); txt(842,252,'Ammeter','small',g,'end');
+  // ALT light
+  g=comp('altlt'); el('circle',{id:'aAltLt',cx:640,cy:400,r:13,fill:'#555',stroke:'#222'},g); pill(640,432,'ALT.');
+  W('aAltLt2','M653 400 L668 400 L668 236 L760 236 L760 100');
+  el('path',{d:'M640 387 L640 372 L700 372',stroke:'#999','stroke-width':1.3,'stroke-dasharray':'4 3',fill:'none'});
+  const t1=txt(706,378,'To ancillaries board logic','small',null,'start'); t1.style.fontStyle='italic';
+  // starter, starter relay, master relay, battery
+  g=comp('starter'); el('circle',{id:'aStarterC',cx:712,cy:300,r:24,fill:'#fff',stroke:'#333','stroke-width':1.8},g); txt(712,297,'Engine','small',g); txt(712,311,'Starter','small',g);
+  el('path',{d:'M712 324 L712 332',stroke:'#555','stroke-width':1.5}); earth(712,332);
+  W('aSR','M736 300 L760 300',{'stroke-width':3.5});
+  relayBox('sr','aSr',760,277,'Starter relay',270);
+  el('path',{d:'M800 323 L800 336',stroke:'#555','stroke-width':1.5}); chassis(800,336);
+  W('aMain','M812 300 L940 300',{'stroke-width':3.5});
+  relayBox('mr','aMr',940,277,'Master relay',270);
+  W('aBatt','M992 300 L1030 300',{'stroke-width':3.5});
+  g=comp('batt'); el('rect',{x:1030,y:284,width:74,height:32,rx:3,fill:'#fff',stroke:'#333','stroke-width':1.8},g);
+  for(let i=0;i<6;i++) el('path',{d:`M${1040+i*10} 289 L${1040+i*10} 311 M${1045+i*10} 293 L${1045+i*10} 307`,stroke:'#333','stroke-width':1.6},g);
+  txt(1034,280,'+','small',g,'start');
+  el('path',{d:'M1067 316 L1067 324',stroke:'#555','stroke-width':1.5}); earth(1067,324);
+  // BB2 -> regulator ; direct battery drops
+  W('aBB2in','M1006 300 L1006 214'); brkP('a','BB2',985,192,'bbp'); W('aBB2','M1006 192 L1006 80 L840 80');
+  W('aDir','M1022 300 L1022 352 L1108 352');
+  W('aCoil','M966 323 L966 370',{'stroke-dasharray':'5 4'}); brkP('a','BB1',945,370,'bbp');
+  W('aBB4t','M1040 352 L1040 362'); brkP('a','BB4',1020,362,'bbp');
+  W('aBB3t','M1080 352 L1080 362'); brkP('a','BB3',1060,362,'barc'); // BB3 label box
+  W('aBB4','M1040 384 L1040 840 L420 840 L420 605 L440 605');
+  W('aPl','M1108 352 L1108 880 L14 880');
+  txt(840,834,'BARC backup (BB4)','small',null,'start'); txt(840,854,'Ancillaries – Aux. power (BB3)','small',null,'start'); txt(840,874,'PLASMA (direct battery) → B12','small',null,'start');
+  // BARC block
+  g=comp('barc'); el('rect',{x:640,y:466,width:230,height:96,rx:4,fill:'#fff',stroke:'#333','stroke-dasharray':'6 4'},g);
+  txt(642,460,'BARC','',g,'start');
+  txt(648,491,'Power supply 2 (A2) — NR copy for MFD','small',g,'start'); txt(648,521,'Power supply 1 (A1) — BARC functions','small',g,'start');
+  txt(690,555,'NR Nominal','small',g); txt(810,555,'TBRR','small',g);
+  el('circle',{id:'aA2',cx:640,cy:486,r:3,fill:'#333'}); el('circle',{id:'aA1',cx:640,cy:516,r:3,fill:'#333'});
+  // BARC switch, D3, NR BKP light, D4, Mute
+  g=comp('barc'); el('rect',{x:440,y:590,width:60,height:70,rx:4,fill:'#fff',stroke:'#333','stroke-width':1.8},g);
+  el('path',{id:'aBarcBlade',d:'M452 625 L488 605',stroke:'#333','stroke-width':2.5},g);
+  txt(436,630,'BARC switch','small',g,'end'); txt(506,598,'Backup','small',g,'start'); txt(506,658,'Mute','small',g,'start');
+  el('path',{d:'M440 645 L428 645 L428 654',stroke:'#555','stroke-width':1.5,fill:'none'}); chassis(428,654);
+  W('aBkp','M500 605 L620 605 L620 522'); dio(620,550,'u','D3');
+  g=comp('barc'); el('circle',{id:'aNrBkp',cx:690,cy:622,r:12,fill:'#555',stroke:'#222'},g); pill(690,654,'NR BKP Nominal');
+  NW('M620 622 L678 622'); NW('M690 610 L690 562'); NW('M702 622 L810 622 L810 562'); dio(760,622,'l','D4 (in line)');
+  NW('M500 645 L580 645 L580 680 L880 680 L880 552 L870 552');
+  // START, avionics relay, starting logic, MASTER
+  g=comp('start'); el('rect',{id:'aStartBox',x:430,y:720,width:40,height:25,rx:3,fill:'#e6e8ec',stroke:'#333','stroke-width':1.5},g);
+  el('path',{d:'M440 726 L460 726',stroke:'#333','stroke-width':4},g); pill(450,764,'START');
+  W('aStart','M470 732 L520 732',{'stroke-dasharray':'5 4'});
+  g=comp('avr'); el('rect',{id:'aAvrBox',x:520,y:700,width:60,height:64,rx:3,fill:'#eceef1',stroke:'#555','stroke-dasharray':'5 3'},g);
+  el('path',{id:'aAvrBlade',d:'M530 712 L572 704',stroke:'#333','stroke-width':2.5},g); txt(586,776,'Avionics relay','small',g,'start');
+  W('aAvOut','M580 704 L640 704'); arr(650,704); txt(660,708,'Avionics','small',null,'start');
+  W('aSRctl','M580 744 L890 744 L890 352 L776 352 L776 323',{'stroke-dasharray':'5 4'});
+  NW('M520 752 L500 752 L500 803 L482 803');
+  bx('start',430,790,52,26,['logic'],{ns:true,dash:'4 3'}); txt(404,840,'Starting circuit logic','small',null,'end');
+  el('path',{d:'M430 803 L414 803 L414 806',stroke:'#555','stroke-width':1.5,fill:'none'}); chassis(414,806);
+  g=comp('master'); el('rect',{x:560,y:800,width:50,height:24,rx:4,fill:'#fff',stroke:'#333','stroke-width':1.8},g); el('text',{id:'aMasterTxt',x:585,y:817,'text-anchor':'middle',class:'small'},g); pill(585,790,'MASTER');
+  el('path',{d:'M560 812 L544 812 L544 816',stroke:'#555','stroke-width':1.5,fill:'none'}); chassis(544,816);
+  W('aMst','M610 812 L966 812 L966 392',{'stroke-dasharray':'5 4'});
+  // badges
+  [['bus',30,30],['reg',730,46],['alt',818,168],['amm',882,236],['altlt',620,386],['altsw',462,252],['starter',690,276],['sr',822,282],['mr',1000,282],
+   ['batt',1110,284],['bbp',1040,190],['barc',632,456],['start',418,716],['avr',592,696],['master',620,800],['plasma',104,500],['aux',318,562]].forEach(b=>badge(b[0],b[1],b[2]));
+}
+
+/* ---------------- PAGE B : 71-C-10 ---------------- */
+function buildPageB(){
+  onPage('svgB',1,1);
+  el('rect',{x:4,y:4,width:1112,height:932,rx:10,fill:'#fbfaf6',stroke:'#ece6d8'});
+  // B1 / B9 / START / first starter relay / radios
+  brkP('b','B1',30,40,'avr'); W('bB1','M72 51 L330 51 L330 150');
+  brkP('b','B9',30,98,'start'); W('bB9','M72 109 L130 109');
+  let g=comp('start'); el('rect',{id:'bStartBox',x:130,y:96,width:60,height:28,rx:3,fill:'#e6e8ec',stroke:'#333','stroke-width':1.5},g); el('path',{d:'M146 102 L174 102',stroke:'#333','stroke-width':4},g); pill(160,144,'START');
+  W('bStart','M190 109 L250 109 L250 185 L330 185');
+  g=comp('avr'); el('rect',{id:'bFsrBox',x:330,y:138,width:66,height:80,rx:3,fill:'#eceef1',stroke:'#555'},g);
+  el('path',{id:'bFsrBlade',d:'M336 150 L388 146',stroke:'#333','stroke-width':2.5},g);
+  el('path',{d:'M352 198 q6 -6 12 0 q6 6 12 0',stroke:'#555','stroke-width':1.5,fill:'none'},g);
+  txt(363,236,'First starter relay','small',g);
+  W('bRadio','M396 146 L430 146 L430 72 L460 72'); bx('avr',460,48,110,48,['Radios','Intercom'],{big:false});
+  el('path',{d:'M570 72 L588 72 L588 82',stroke:'#555','stroke-width':1.5,fill:'none'}); chassis(588,82);
+  W('bSRctl','M396 170 L590 170 L590 272 L996 272 L996 168',{'stroke-dasharray':'5 4'});
+  // coil return to starting logic (grey, as in MM)
+  NW('M330 205 L60 205 L60 560 L292 560 L292 404');
+  // 1" magneto inhibition
+  NW('M210 109 L210 405 L232 405'); NW('M210 296 L232 296');
+  bx('maginh',232,272,100,48,['1"  timer'],{ns:true}); NW('M332 296 L372 296 L372 268 L452 268 L452 284');
+  bx('maginh',432,284,64,26,['MAGN'],{ns:true,dash:'4 3'}); pill(464,330,'MAGN SWITCH',true);
+  NW('M496 297 L526 297'); bx('maginh',526,270,64,54,['Magneto'],{ns:true});
+  NW('M432 302 L418 302 L418 312'); chassis(418,312);
+  // AND / 1' block -> antitheft -> D15 -> oil pressure switch
+  bx('startlogic',232,370,100,60,['& · 1\' timer'],{ns:true});
+  NW('M332 392 L380 392'); el('circle',{cx:380,cy:392,r:3,fill:'#888'});
+  NW('M380 392 L380 352 L220 352 L220 384 L232 384');
+  NW('M380 392 L420 392');
+  g=comp('antitheft'); el('rect',{x:420,y:366,width:100,height:52,rx:3,fill:'#fff',stroke:'#333','stroke-width':1.6},g); txt(470,360,'Antitheft','small',g);
+  el('path',{id:'bAntiBlade',d:'M436 392 L500 392',stroke:'#333','stroke-width':2.5},g);
+  NW('M520 392 L560 392 L560 460 L640 460'); dio(648,460,'r','D15'); NW('M654 460 L680 460 L680 512 L700 512');
+  g=comp('oilpsw'); el('rect',{x:690,y:486,width:72,height:56,rx:3,fill:'#fff',stroke:'#333','stroke-width':1.6},g);
+  el('path',{id:'bOilBlade',d:'M700 512 L748 500',stroke:'#333','stroke-width':2.5},g); txt(726,536,'P','',g);
+  txt(726,480,'> 1 bar ▲   < 1 bar ▼','small',g); txt(726,560,'Engine oil pressure','small',g);
+  NW('M762 512 L800 512 L800 524'); chassis(800,524);
+  NW('M560 460 L560 600 L620 600'); NW('M600 512 L600 640 L620 640');
+  dio(648,512,'r','D16'); NW('M600 512 L642 512'); NW('M654 512 L680 512');
+  // power circuit box (live)
+  el('rect',{x:620,y:28,width:480,height:220,rx:6,fill:'none',stroke:'#333','stroke-width':1.3}); txt(624,22,'Starting and power circuit','small',null,'start');
+  g=comp('bus'); el('rect',{x:640,y:48,width:14,height:170,rx:2,fill:'#555'},g); txt(664,64,'B1…B12','small',g,'start');
+  W('bFeed','M647 48 L647 38 L940 38 L940 120',{'stroke-width':3});
+  g=comp('batt'); el('rect',{x:720,y:104,width:90,height:34,rx:3,fill:'#fff',stroke:'#333','stroke-width':1.8},g);
+  for(let i=0;i<7;i++) el('path',{d:`M${730+i*10} 109 L${730+i*10} 133 M${735+i*10} 113 L${735+i*10} 129`,stroke:'#333','stroke-width':1.5},g);
+  el('path',{d:'M720 121 L700 121 L700 140',stroke:'#555','stroke-width':1.5,fill:'none'}); earth(700,140);
+  W('bBatt','M810 121 L870 121',{'stroke-width':3});
+  NW('M836 121 L836 92 L700 92'); arr(694,92,NS); txt(760,86,'Direct battery circuits','small');
+  relayBox('mr','bMr',870,98,'Master relay',160);
+  W('bMain','M922 121 L980 121',{'stroke-width':3});
+  relayBox('sr','bSr',980,98,'Starter relay',160);
+  W('bSR','M1032 121 L1050 121',{'stroke-width':3});
+  g=comp('starter'); el('circle',{id:'bStarterC',cx:1072,cy:121,r:22,fill:'#fff',stroke:'#333','stroke-width':1.8},g); txt(1072,126,'Starter','small',g);
+  g=comp('alt'); el('circle',{id:'bAltC',cx:1072,cy:56,r:18,fill:'#fff',stroke:'#333','stroke-width':1.8},g); txt(1072,61,'Alt.','small',g);
+  W('bAltOut','M1054 56 L960 56 L960 121'); g=comp('amm'); el('ellipse',{cx:950,cy:76,rx:12,ry:6,fill:'none',stroke:'#222','stroke-width':2.6},g); txt(930,80,'Ammeter','small',g,'end');
+  g=comp('master'); el('rect',{x:720,y:186,width:56,height:24,rx:4,fill:'#fff',stroke:'#333','stroke-width':1.6},g); el('text',{id:'bMasterTxt',x:748,y:203,'text-anchor':'middle',class:'small'},g); pill(748,232,'MASTER SWITCH');
+  W('bMst','M776 198 L800 198'); brkP('b','BB2*',800,187,'bbp'); W('bMst2','M842 198 L896 198 L896 144',{'stroke-dasharray':'5 4'});
+  el('path',{d:'M720 198 L700 198 L700 160',stroke:'#555','stroke-width':1.5,fill:'none'});
+  el('path',{d:'M1000 144 L1000 160',stroke:'#555','stroke-width':1.5}); chassis(1000,160);
+  // hourmeter, TBRR, BARC
+  brkP('b','B5',430,588,'epm'); W('bB5','M472 599 L496 599'); bx('tbrr',496,584,70,30,['00000,0'],{ns:true,fill:'#222'}); txt(531,630,'Hourmeter','small');
+  NW('M566 640 L620 640');
+  g=comp('tbrr'); el('rect',{x:620,y:580,width:60,height:150,rx:3,fill:'#f1f2f4',stroke:'#aab0ba'},g); txt(650,748,'TBRR relay','small',g);
+  [600,640,680].forEach(y=>{ el('path',{d:`M626 ${y} L670 ${y-12}`,stroke:'#999','stroke-width':2},g); txt(688,y-12,'flight','small',g,'start'); txt(688,y+4,'ground','small',g,'start'); });
+  el('path',{d:'M640 708 q6 -6 12 0 q6 6 12 0',stroke:'#999','stroke-width':1.5,fill:'none'},g);
+  NW('M680 584 L740 584 L740 560'); NW('M680 644 L716 644 L716 656'); chassis(716,656);
+  brkP('b','B9 ',430,700,'start'); NW('M472 711 L600 711 L600 712 L620 712'); dio(590,711,'r','D8');
+  bx('barc',480,760,110,50,['BARC'],{ns:true,dash:'5 4'}); NW('M590 785 L650 785 L650 730');
+  // lamps on B10 + brake switch
+  NW('M680 680 L740 680'); dio(756,680,'r','D17'); NW('M762 680 L900 680 L900 610 L916 610');
+  g=comp('brake'); el('rect',{x:916,y:590,width:70,height:40,rx:3,fill:'#f1f2f4',stroke:'#aab0ba'},g); el('path',{d:'M926 614 L970 602',stroke:'#999','stroke-width':2.2},g); txt(951,626,'Engaged','small',g); txt(951,648,'Brake switch','small',g);
+  NW('M986 614 L1010 614 L1010 626'); chassis(1010,626);
+  g=comp('oilpsw'); el('circle',{id:'bOilLt',cx:840,cy:740,r:13,fill:'#555',stroke:'#222'},g); pill(840,772,'OIL P.');
+  g=comp('brake'); el('circle',{id:'bBrakeLt',cx:840,cy:810,r:13,fill:'#555',stroke:'#aab0ba'},g); pill(840,842,'BRAKE',true);
+  g=comp('clutch'); el('circle',{id:'bClutchLt',cx:840,cy:880,r:13,fill:'#555',stroke:'#aab0ba'},g); pill(840,912,'CLUTCH',true);
+  W('bOilLtW','M827 740 L770 740 L770 576 L680 576 L680 512');
+  NW('M827 810 L800 810 L800 690'); dio(800,700,'u','D34');
+  NW('M827 880 L700 880 L700 862 L440 862 L440 833 L420 833');
+  brkP('b','B10',980,800,'warn'); W('bB10','M980 811 L900 811 L900 740 L853 740 M900 811 L853 811 M900 811 L900 880 L853 880');
+  // clutch circuit
+  brkP('b','B7',30,600,'cbp'); W('bB7','M72 611 L90 611 L90 660 L104 660 M90 611 L104 611');
+  bx('clutch',104,600,40,22,['PS'],{ns:true}); bx('clutch',104,649,40,22,['PS'],{ns:true});
+  NW('M144 611 L170 611'); NW('M144 660 L170 660');
+  bx('clutch',170,596,64,80,['Eng.','Diseng.'],{ns:true}); pill(202,698,'CLUTCH SWITCH',true);
+  NW('M234 616 L330 616 L330 724'); NW('M234 656 L300 656 L300 724');
+  g=comp('clutch'); el('circle',{cx:316,cy:756,r:34,fill:'#f7f8fa',stroke:'#aab0ba','stroke-width':1.8},g); const mt=txt(316,766,'M','',g); mt.style.fontSize='26px'; mt.style.fill='#8a919c';
+  el('path',{d:'M292 780 L232 830 M340 780 L280 862',stroke:'#aab0ba','stroke-width':1.3,fill:'none'});
+  g=comp('clutch'); el('circle',{cx:240,cy:846,r:30,fill:'#f7f8fa',stroke:'#aab0ba','stroke-width':1.8},g); el('path',{d:'M258 866 L226 828 M226 828 L226 842 M226 828 L240 828',stroke:'#8a919c','stroke-width':3,fill:'none'},g);
+  txt(178,816,'Clutch eng.','small',null,'middle').style.fill='#8a919c'; txt(178,896,'Clutch diseng.','small',null,'middle').style.fill='#8a919c';
+  g=comp('clutch'); el('rect',{x:60,y:770,width:44,height:140,fill:'#eef0f3',stroke:'#aab0ba'},g); txt(82,820,'Cyl.','small',g).style.fill='#8a919c';
+  el('path',{d:'M60 862 L104 862',stroke:'#8a919c','stroke-width':5});
+  HYD('M104 786 L212 786 L212 830'); HYD('M104 902 L250 902 L250 876'); HYD('M270 846 L400 846 L480 846 L480 880');
+  g=comp('clutch'); el('rect',{x:440,y:872,width:110,height:52,rx:3,fill:'none',stroke:'#aab0ba','stroke-dasharray':'5 4'},g); txt(495,918,'mechanical oil pump','small',g).style.fill='#8a919c';
+  bx('clutch',380,820,40,26,['P'],{ns:true}); txt(426,816,'< 4 Bar','small',null,'start');
+  NW('M380 833 L364 833 L364 842'); chassis(364,842);
+  // badges
+  [['avr',404,132],['start',202,92],['maginh',344,270],['startlogic',220,366],['antitheft',530,364],['oilpsw',772,484],['mr',934,96],['sr',1044,96],
+   ['batt',716,98],['master',712,182],['tbrr',612,576],['brake',996,588],['clutch',248,592],['warn',1036,798],['epm',424,584]].forEach(b=>badge(b[0],b[1],b[2]));
+}
+
+/* ---------------- PAGE C : 71-C-25 ---------------- */
+function buildPageC(){
+  onPage('svgC',1,1);
+  el('rect',{x:4,y:4,width:1112,height:612,rx:10,fill:'#fbfaf6',stroke:'#ece6d8'});
+  let g=comp('reg'); el('rect',{x:50,y:190,width:170,height:100,rx:6,fill:'#ffe2c4',stroke:'#c06a16','stroke-width':2},g); txt(135,236,'Voltage regulator','',g); txt(135,256,'CABRI G2','small',g);
+  el('path',{d:'M220 240 Q300 240 330 270',stroke:'#222','stroke-width':10,fill:'none'});
+  // C-REG pins column
+  g=comp('reg'); el('rect',{x:400,y:150,width:64,height:330,rx:4,fill:'none',stroke:'#999','stroke-dasharray':'5 4'},g); txt(432,142,'C-REG','',g);
+  const P={3:180,2:240,6:300,1:380,5:440};
+  Object.entries(P).forEach(([n,y])=>{ el('rect',{x:410,y:y-12,width:44,height:24,fill:'#fff',stroke:'#333'},g); txt(432,y+5,n,'',g); NW(`M330 270 Q370 ${y} 410 ${y}`,{'stroke-width':1.6}); });
+  // pin 3 -> C-ENG-N -> alternator field
+  W('cField','M454 180 L620 180'); g=comp('reg'); el('rect',{x:620,y:170,width:40,height:20,rx:8,fill:'#ddd',stroke:'#333'},g); txt(640,164,'C-ENG-N','small',g);
+  W('cField2','M660 180 L860 180 L860 150');
+  g=comp('alt'); el('circle',{id:'cAltC',cx:900,cy:110,r:52,fill:'#fff',stroke:'#333','stroke-width':2},g); txt(900,104,'Alternator','',g); txt(900,124,'AUX · field','small',g);
+  el('path',{d:'M940 140 L970 170 L970 182',stroke:'#555','stroke-width':1.5,fill:'none'}); earth(970,182); txt(986,176,'Ground','small',null,'start');
+  W('cAltOut','M848 100 L700 100 L700 60 L640 60',{'stroke-width':3}); bx('mr',500,44,140,32,['From master relay out']);
+  // pin 2 -> ancillaries board -> ALT light
+  W('cPin2','M454 240 L880 240'); g=comp('altlt'); el('rect',{x:880,y:210,width:150,height:110,rx:4,fill:'#e2f2dd',stroke:'#4d7a45','stroke-width':1.8},g); txt(955,258,'Ancillaries board','small',g); txt(955,274,'CABRI G2','small',g); txt(872,234,'1-29','small',null,'end');
+  g=comp('altlt'); el('circle',{id:'cAltLt',cx:856,cy:258,r:13,fill:'#555',stroke:'#222'},g); pill(856,290,'ALT');
+  el('path',{d:'M869 258 L880 258',stroke:'#555','stroke-width':1.5});
+  // pin 6 -> BB2 -> battery
+  W('cPin6','M454 300 L560 300'); brkP('c','BB2',560,289,'bbp'); W('cPin6b','M602 300 L690 300');
+  g=comp('batt'); el('rect',{x:690,y:280,width:120,height:40,rx:3,fill:'#fff',stroke:'#333','stroke-width':1.8},g);
+  for(let i=0;i<8;i++) el('path',{d:`M${702+i*12} 285 L${702+i*12} 315 M${707+i*12} 290 L${707+i*12} 310`,stroke:'#333','stroke-width':1.6},g);
+  txt(750,274,'Battery','small',g); txt(694,276,'+','small',g,'start');
+  el('path',{d:'M750 320 L750 330',stroke:'#555','stroke-width':1.5}); earth(750,330);
+  // pin 1 -> C-PDB-E -> ALT switch -> C-PDB-b -> B6 -> bus
+  W('cPin1','M454 380 L540 380'); g=comp('altsw'); el('rect',{x:540,y:370,width:40,height:20,rx:8,fill:'#ddd',stroke:'#333'},g); txt(560,364,'C-PDB-E','small',g);
+  W('cPin1b','M580 380 L620 380'); g=comp('altsw'); el('rect',{x:620,y:366,width:60,height:28,rx:4,fill:'#fff',stroke:'#333','stroke-width':1.8},g); el('text',{id:'cAltSwTxt',x:650,y:385,'text-anchor':'middle',class:'small'},g); pill(650,414,'ALT');
+  W('cPin1c','M680 380 L720 380'); g=comp('altsw'); el('rect',{x:720,y:370,width:40,height:20,rx:8,fill:'#ddd',stroke:'#333'},g); txt(740,364,'C-PDB-b','small',g);
+  W('cB6','M760 380 L800 380'); brkP('c','B6',800,369,'altsw'); W('cB6bus','M842 380 L880 380');
+  g=comp('bus'); el('rect',{x:880,y:340,width:14,height:90,rx:2,fill:'#555'},g); txt(904,390,'BUS BAR','small',g,'start');
+  // pin 5 -> ground BTP-GP
+  NW('M454 440 L432 440 L432 520',{stroke:'#555'}); chassis(432,520); txt(452,548,'BTP GP','small');
+  [['reg',44,184],['alt',960,60],['altlt',1040,206],['bbp',610,280],['batt',822,276],['altsw',692,362],['bus',872,336]].forEach(b=>badge(b[0],b[1],b[2]));
+}
+
+/* ---------------- live update of the full pages ---------------- */
+function bladeD(x,y,closed){ return closed?`M${x+8} ${y+14} L${x+44} ${y+14}`:`M${x+8} ${y+14} L${x+42} ${y+4}`; }
+function lampFill(id,on,col){ const e=document.getElementById(id); if(e) e.setAttribute('fill', on?col:'#555'); }
+function setRect(pfx,id,inn){ const r=document.getElementById(pfx+'r-'+id); if(r){ r.setAttribute('stroke',inn?'#555':'var(--amber)'); r.setAttribute('fill',inn?'#fff':'#fff3dc'); } }
+function renderFull(m){
+  // page A
+  setWire('aFeed',m.bus); CB.slice(0,11).forEach(c=>{ setWire('aF'+c[0],m.bus); setRect('a',c[0],S.cb[c[0]]); });
+  [2,3,4,7].forEach(n=>setWire('aOB'+n,m.out('B'+n))); setWire('aOB11',m.out('B11'));
+  setWire('aOB1',m.out('B1')); setWire('aOB5',m.out('B5')); setWire('aOB6',m.out('B6')); setWire('aOB8',m.out('B8')); setWire('aD1',m.out('B8'));
+  setWire('aOB9',m.out('B9')); setWire('aOB10',m.out('B10'));
+  setWire('aFB12',true); setRect('a','B12',S.cb.B12); setWire('aOB12',S.cb.B12);
+  setWire('aAux',S.bb.BB3); setWire('aAltEn',m.regEnabled); setWire('aField',m.charging); setWire('aAltOut',m.charging);
+  document.getElementById('aAltC').setAttribute('fill',m.charging?'#e2f6e9':'#fff');
+  document.getElementById('aAltSwTxt').textContent=S.alt?'ON':'OFF';
+  lampFill('aAltLt',m.altLight,'var(--amber)'); setWire('aAltLt2',m.altLight);
+  setWire('aSR',m.starterOn); document.getElementById('aStarterC').setAttribute('fill',m.starterOn?'#ffe7c2':'#fff');
+  document.getElementById('aSrBlade').setAttribute('d',bladeD(760,277,m.starterOn));
+  setWire('aMain',m.mrClosed); document.getElementById('aMrBlade').setAttribute('d',bladeD(940,277,m.mrClosed));
+  setWire('aBatt',true); setWire('aDir',true); setWire('aBB2in',true); setWire('aBB2',S.bb.BB2);
+  ['BB1','BB2','BB3','BB4'].forEach(b=>setRect('a',b,S.bb[b]));
+  setWire('aCoil',m.mrClosed,true); setWire('aMst',m.mrClosed,true);
+  setWire('aBB4t',true); setWire('aBB3t',true); setWire('aBB4',S.bb.BB4); setWire('aPl',true);
+  const bk = S.barc==="BACKUP" && S.bb.BB4;
+  setWire('aBkp',bk); document.getElementById('aBarcBlade').setAttribute('d', S.barc==="BACKUP"?'M452 625 L488 605':'M452 625 L488 629');
+  lampFill('aNrBkp',m.barcGreen,'#29c26a');
+  document.getElementById('aA1').setAttribute('fill',m.barcPowered?'#1f9d55':'#999'); document.getElementById('aA2').setAttribute('fill',m.out('B5')?'#1f9d55':'#999');
+  setWire('aStart',S.startHeld && m.out('B9'),true); document.getElementById('aStartBox').setAttribute('fill',S.startHeld?'#efe7ff':'#e6e8ec');
+  document.getElementById('aAvrBlade').setAttribute('d', S.startHeld?'M530 712 L572 740':'M530 712 L572 704');
+  setWire('aAvOut',m.avionics); setWire('aSRctl',m.crankCmd || m.starterOn,true);
+  document.getElementById('aMasterTxt').textContent=S.master?'ON':'OFF';
+  // page B
+  setWire('bB1',m.out('B1')); setRect('b','B1',S.cb.B1); setWire('bB9',m.out('B9')); setRect('b','B9',S.cb.B9); setRect('b','B9 ',S.cb.B9);
+  setWire('bStart',S.startHeld && m.out('B9'),true); document.getElementById('bStartBox').setAttribute('fill',S.startHeld?'#efe7ff':'#e6e8ec');
+  document.getElementById('bFsrBlade').setAttribute('d', S.startHeld?'M336 150 L388 170':'M336 150 L388 146');
+  setWire('bRadio',m.avionics); setWire('bSRctl',m.crankCmd || m.starterOn,true);
+  document.getElementById('bAntiBlade').setAttribute('d', S.locked?'M436 392 L496 378':'M436 392 L500 392');
+  const oilHigh = S.engine==="RUNNING";
+  document.getElementById('bOilBlade').setAttribute('d', oilHigh?'M700 512 L748 500':'M700 512 L748 524');
+  setWire('bFeed',m.bus); setWire('bBatt',true); setWire('bMain',m.mrClosed); setWire('bSR',m.starterOn); setWire('bAltOut',m.charging);
+  document.getElementById('bMrBlade').setAttribute('d',bladeD(870,98,m.mrClosed)); document.getElementById('bSrBlade').setAttribute('d',bladeD(980,98,m.starterOn));
+  document.getElementById('bStarterC').setAttribute('fill',m.starterOn?'#ffe7c2':'#fff'); document.getElementById('bAltC').setAttribute('fill',m.charging?'#e2f6e9':'#fff');
+  document.getElementById('bMasterTxt').textContent=S.master?'ON':'OFF'; setWire('bMst',S.master,true); setWire('bMst2',m.mrClosed,true); setRect('b','BB2*',S.bb.BB1);
+  setWire('bB5',m.out('B5')); setRect('b','B5',S.cb.B5); setWire('bB7',m.out('B7')); setRect('b','B7',S.cb.B7);
+  setWire('bB10',m.out('B10')); setRect('b','B10',S.cb.B10); lampFill('bOilLt',m.oilLight,'#e5484d'); setWire('bOilLtW',m.oilLight);
+  // page C
+  setWire('cField',m.charging); setWire('cField2',m.charging); setWire('cAltOut',m.charging); document.getElementById('cAltC').setAttribute('fill',m.charging?'#e2f6e9':'#fff');
+  setWire('cPin2',m.altLight); lampFill('cAltLt',m.altLight,'var(--amber)');
+  setWire('cPin6',S.bb.BB2); setWire('cPin6b',true); setRect('c','BB2',S.bb.BB2);
+  setWire('cPin1',m.regEnabled); setWire('cPin1b',m.regEnabled); setWire('cPin1c',m.out('B6')); setWire('cB6',m.out('B6')); setWire('cB6bus',m.bus); setRect('c','B6',S.cb.B6);
+  document.getElementById('cAltSwTxt').textContent=S.alt?'ON':'OFF';
+}
+
+/* fault locations on the full pages */
+const FLOC_P = {
+  svgA:{ beltBroken:null, altFail:[732,44,124,172,'T',[790,38,'middle']], antitheft:[426,786,60,34,'T',[456,780,'middle']], srStuck:[756,264,60,64,'B',[786,350,'middle']],
+         bb1Pop:[941,366,50,30], bb2Pop:[981,188,50,30], bb4Pop:[1016,358,50,30] },
+  svgB:{ antitheft:[414,350,112,74,'B',[470,440,'middle']], srStuck:[976,94,60,56,'B',[1006,262,'middle']], bb1Pop:[796,183,50,30] },
+  svgC:{ altFail:[44,184,182,112,'B'], beltBroken:[844,54,112,112,'B',[900,196,'middle']], bb2Pop:[556,285,50,30], b6Pop:[796,365,50,30] }
+};
+(function(){ // breaker faults on pages A/B from breaker positions
+  ['B1','B5','B6','B7','B8','B9','B10'].forEach((b,i)=>{ const n=+b.slice(1); FLOC_P.svgA[b.toLowerCase()+'Pop']=[62,50+(n-1)*42-4,50,30]; });
+  Object.assign(FLOC_P.svgB,{b1Pop:[26,36,50,30],b9Pop:[26,94,50,30],b5Pop:[426,584,50,30],b7Pop:[26,596,50,30],b10Pop:[976,796,50,30]});
+})();
+function drawFaultLayers(){
+  drawFaultLayer();                 // overview (uses its own scale)
+  Object.keys(FLOC_P).forEach(pid=>{
+    const old=document.getElementById('fl_'+pid); if(old) old.remove();
+    if(!(S.showFaults||S.reveal) || !S.faults.size) return;
+    const sv=svg, sx=SX, sy=SY; onPage(pid,1,1);
+    const L=el('g',{id:'fl_'+pid}); L.style.pointerEvents='none';
+    S.faults.forEach(k=>{ const p=FLOC_P[pid][k]; if(!p) return; const [x,y,w,h,side,custom]=p;
+      el('rect',{x,y,width:w,height:h,rx:6,fill:'#d93a3a22',stroke:'#d93a3a','stroke-width':2.5,'stroke-dasharray':'6 4'},L);
+      if(/^(b|bb)\d+Pop$/.test(k)) return;
+      let tx,ty,anc; if(custom){[tx,ty,anc]=custom;} else if(side==='B'){tx=x+w/2;ty=y+h+16;anc='middle';} else {tx=x+w/2;ty=y-6;anc='middle';}
+      const t=txt(tx,ty,'⚠ '+FLABEL[k],'small',L,anc); t.style.fill='#c0262d'; t.style.fontWeight='700'; t.style.paintOrder='stroke'; t.style.stroke='#fff'; t.style.strokeWidth='4px'; });
+    svg=sv; SX=sx; SY=sy;
+  });
+}
+
+const VIEWCAP={svgA:'Redrawn from MM 71-C-01 Power Generation and Distribution (breaker ratings as printed in the MM). Grey = drawn as in the MM, not simulated.',
+  svgB:'Redrawn from MM 71-C-10 Starting and Clutching Circuit. Live: B1, B9, START, first starter relay, power circuit, antitheft, oil pressure switch, OIL P light. Grey = drawn as in the MM, not simulated.',
+  svgC:'Redrawn from MM 71-C-25 Alternator Circuit (C-REG pins, connectors C-ENG-N, C-PDB-E, C-PDB-b).',
+  schem:'Simplified overview combining 71-C-01 / 71-C-25 / 71-C-10.'};
+function showView(v){ ['svgA','svgB','svgC','schem'].forEach(id=>document.getElementById(id).classList.toggle('hidden',id!==v));
+  document.querySelectorAll('#viewTabs button').forEach(b=>b.classList.toggle('sec',b.dataset.v!==v)); document.getElementById('viewCap').textContent=VIEWCAP[v]; }
+document.querySelectorAll('#viewTabs button').forEach(b=>b.onclick=()=>showView(b.dataset.v));
+buildSchematic(); buildPageA(); buildPageB(); buildPageC(); showView('svgA'); buildKey(); buildPanels(); buildMeas(); buildScen(); buildInstr(); buildSrc();
 document.getElementById('p-info').innerHTML='<p class="src" style="font-size:14px">Click any component on the schematic, a number, or a line in the key to see its function, part number, MM tasks and sources.</p>'; activateTab('info');
 log('Simulator loaded. Aircraft cold & dark.');
 let last=performance.now();
