@@ -932,7 +932,7 @@ function earth(x,y){ ground(x,y); }
 function bx(id,x,y,w,h,lines,o){ o=o||{}; const g=comp(id);
   el('rect',{id:o.rid||null,x,y,width:w,height:h,rx:o.rx??5,fill:o.fill||(o.ns?'#f1f2f4':'#fff'),stroke:o.ns?'#aab0ba':'#333','stroke-width':o.sw||1.8,'stroke-dasharray':o.dash||null},g);
   (lines||[]).forEach((t,i)=>{ const tt=txt(x+w/2,y+h/2+5+(i-(lines.length-1)/2)*16,t,o.big?'':'small',g); if(o.ns) tt.style.fill='#8a919c'; });
-  if(o.ns){ const n=txt(x+w-3,y+h-4,'n/s','small',g,'end'); n.style.fontSize='10px'; n.style.fill='#a0a6b0'; n.style.fontStyle='italic'; }
+  if(o.ns){ const small=h<40; const n=txt(small?x+w:x+w-3, small?y-3:y+h-4,'n/s','small',g,'end'); n.style.fontSize='10px'; n.style.fill='#a0a6b0'; n.style.fontStyle='italic'; }
   return g; }
 function pill(x,y,t,ns){ const w=t.length*7.6+16; el('rect',{x:x-w/2,y:y-13,width:w,height:20,rx:7,fill:ns?'#f1f2f4':'#eef0f3',stroke:ns?'#aab0ba':'#555'}); const tt=txt(x,y+2,t,'small'); if(ns) tt.style.fill='#8a919c'; }
 function lamp(id,cx,cy,label,ns){ const g=comp(id); el('circle',{id:'L_'+cx+'_'+cy,cx,cy,r:13,fill:'#555',stroke:'#222'},g); return g; }
@@ -1065,7 +1065,7 @@ function buildPageB(){
   bx('maginh',232,272,100,48,['1"  timer'],{ns:true}); NW('M332 296 L372 296 L372 268 L452 268 L452 284');
   bx('maginh',432,284,64,26,['MAGN'],{ns:true,dash:'4 3'}); pill(464,330,'MAGN SWITCH',true);
   NW('M496 297 L526 297'); bx('maginh',526,270,64,54,['Magneto'],{ns:true});
-  NW('M432 302 L418 302 L418 312'); chassis(418,312);
+  NW('M432 302 L396 302 L396 306'); chassis(396,306);
   // AND / 1' block -> antitheft -> D15 -> oil pressure switch
   bx('startlogic',232,370,100,60,['& · 1\' timer'],{ns:true});
   NW('M332 392 L380 392'); el('circle',{cx:380,cy:392,r:3,fill:'#888'});
@@ -1235,7 +1235,7 @@ const FLOC_P = {
   svgA:{ beltBroken:null, altFail:[732,44,124,172,'T',[790,38,'middle']], antitheft:[426,786,60,34,'T',[456,780,'middle']], srStuck:[756,264,60,64,'B',[786,350,'middle']],
          bb1Pop:[941,366,50,30], bb2Pop:[981,188,50,30], bb4Pop:[1016,358,50,30] },
   svgB:{ antitheft:[414,350,112,74,'B',[470,440,'middle']], srStuck:[976,94,60,56,'B',[1006,262,'middle']], bb1Pop:[796,183,50,30] },
-  svgC:{ altFail:[44,184,182,112,'B'], beltBroken:[844,54,112,112,'B',[900,196,'middle']], bb2Pop:[556,285,50,30], b6Pop:[796,365,50,30] }
+  svgC:{ altFail:[44,184,182,112,'B',[44,314,'start']], beltBroken:[844,54,112,112,'B',[900,196,'middle']], bb2Pop:[556,285,50,30], b6Pop:[796,365,50,30] }
 };
 (function(){ // breaker faults on pages A/B from breaker positions
   ['B1','B5','B6','B7','B8','B9','B10'].forEach((b,i)=>{ const n=+b.slice(1); FLOC_P.svgA[b.toLowerCase()+'Pop']=[62,50+(n-1)*42-4,50,30]; });
